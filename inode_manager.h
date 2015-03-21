@@ -16,7 +16,7 @@ typedef uint32_t blockid_t;
 
 class disk {
  private:
-  unsigned char blocks[BLOCK_NUM][BLOCK_SIZE];
+  char blocks[BLOCK_NUM][BLOCK_SIZE];
 
  public:
   disk();
@@ -26,11 +26,11 @@ class disk {
 
 // block layer -----------------------------------------
 
-typedef struct superblock {
+struct superblock {
   uint32_t size;
   uint32_t nblocks;
   uint32_t ninodes;
-} superblock_t;
+};
 
 class block_manager {
  private:
@@ -64,10 +64,10 @@ class block_manager {
 #define BBLOCK(b) ((b)/BPB + 2)
 
 #define NDIRECT 32
-#define NINDIRECT (BLOCK_SIZE / sizeof(uint))
+#define NINDIRECT (BLOCK_SIZE / sizeof(uint32_t))
 #define MAXFILE (NDIRECT + NINDIRECT)
 
-typedef struct inode {
+struct inode {
   //short type;
   unsigned int type;
   unsigned int size;
@@ -75,7 +75,7 @@ typedef struct inode {
   unsigned int mtime;
   unsigned int ctime;
   blockid_t blocks[NDIRECT+1];   // Data block addresses
-} inode_t;
+};
 
 class inode_manager {
  private:
