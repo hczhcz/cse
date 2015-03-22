@@ -145,8 +145,6 @@ void block_manager::free_block(uint32_t id) {
   unlock_block(id);
 }
 
-// The layout of disk should be like this:
-// |<-sb->|<-free block bitmap->|<-inode table->|<-data->|
 block_manager::block_manager() {
   d = new disk();
 
@@ -203,17 +201,20 @@ inode_manager::inode_manager() {
 /* Create a new file.
  * Return its inum. */
 uint32_t inode_manager::alloc_inode(uint32_t type) {
-  inode node;
-  node.attr.type = type;
-  node.attr.atime = time(0);
-  node.attr.mtime = time(0);
-  node.attr.ctime = time(0);
-  node.attr.size = 0;
+  uint32_t inum = bm->alloc_block();
+  diskcache<struct inode> node(bm, inum, false, true);
 
-  uint32_t result = bm->alloc_block();
-  bm->write_block(result, (char *) &node);
+  node->alive = true;
+  node->njnode = 0;
+  node->nknode = 0;
 
-  return result;
+  node->attr.type = type;
+  node->attr.atime = time(0);
+  node->attr.mtime = time(0);
+  node->attr.ctime = time(0);
+  node->attr.size = 0;
+
+  return inum;
 }
 
 void inode_manager::free_inode(uint32_t inum) {

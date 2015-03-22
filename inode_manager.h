@@ -9,6 +9,7 @@
 #define DISK_SIZE         1024*1024*16
 #define BLOCK_SIZE        512
 
+// if BLOCK_NUM != BLOCK_SIZE * 8 * C, the non-existent blocks should be "locked"
 #define BLOCK_NUM         (DISK_SIZE / BLOCK_SIZE)
 #define MAP_NUM           (BLOCK_NUM / BLOCK_SIZE / 8)
 
@@ -91,34 +92,16 @@ class block_manager {
 
 // inode layer -----------------------------------------
 
-// #define INODE_NUM  1024
-
-// // Inodes per block.
-// #define IPB           1
-// //(BLOCK_SIZE / sizeof(struct inode))
-
-// // Block containing inode i
-// #define IBLOCK(i, nblocks)     0 // ((nblocks)/BPB + (i)/IPB + 3)
-
-// // Bitmap bits per block
-// #define BPB           (BLOCK_SIZE*8)
-
-// // Block containing bit for block b
-// #define BBLOCK(b) ((b)/BPB + 2)
-
-// #define NDIRECT 32
-// #define NINDIRECT (BLOCK_SIZE / 4)
-// #define MAXFILE (NDIRECT + NINDIRECT)
-
 #define NMAP_I (U32MAP_TOTAL / 4)
 #define NMAP_J (U32MAP_TOTAL / 2)
 #define NDATA_MIXED (BLOCK_SIZE / 2)
 #define NDATA_FULL BLOCK_SIZE
 
-#define NDIRECT 16
-
 struct inode {
   uint32_t blocks[NMAP_I];
+  bool alive;
+  uint32_t njnode;
+  uint32_t nknode;
   extent_protocol::attr attr;
   char data[NDATA_MIXED];
 };
