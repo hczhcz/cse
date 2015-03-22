@@ -6,14 +6,14 @@ disk::disk() {
   bzero(blocks, sizeof(blocks));
 }
 
-void disk::read_block(blockid_t id, char *buf) {
-  if (id >= 0 && id < BLOCK_NUM && buf) {
+void disk::read_block(uint32_t id, char *buf) {
+  if (id < BLOCK_NUM && buf) {
     memcpy(buf, blocks[id], BLOCK_SIZE);
   }
 }
 
-void disk::write_block(blockid_t id, const char *buf) {
-  if (id >= 0 && id < BLOCK_NUM && buf) {
+void disk::write_block(uint32_t id, const char *buf) {
+  if (id < BLOCK_NUM && buf) {
     memcpy(blocks[id], buf, BLOCK_SIZE);
   }
 }
@@ -84,7 +84,7 @@ uint32_t de_bruijn_pos(uint32_t value) {
   return map[uint32_t((value & -value) * dnum) >> 27];
 }
 
-blockid_t block_manager::pick_free_block() {
+uint32_t block_manager::pick_free_block() {
   diskcache<struct superblock> sb(d, 0);
 
   uint32_t g = sb->metamap_g;
@@ -101,7 +101,10 @@ blockid_t block_manager::pick_free_block() {
 
         // set 0
         mb->map[l] &= ~(1 << p);
-        sb->metamap[g][l_l] &= ~(1 << l_p);
+
+        if (!mb->map[l]) {
+          sb->metamap[g][l_l] &= ~(1 << l_p);
+        }
 
         sb->metamap_g = g;
         sb->metamap_l_l = l_l;
@@ -118,7 +121,7 @@ blockid_t block_manager::pick_free_block() {
 }
 
 // Allocate a free disk block.
-blockid_t block_manager::alloc_block() {
+uint32_t block_manager::alloc_block() {
   return pick_free_block();
 }
 
@@ -152,6 +155,10 @@ block_manager::block_manager() {
       sb->metamap[g][l_l] = U32FILL;
     }
   }
+
+  // lock sb and mb
+  diskcache<struct mapblock> mmb(d, 1);
+  mmb->map[0] &= ~((1 << (1 + sb->nmaps)) - 1);
 }
 
 void block_manager::read_block(uint32_t id, char *buf) {

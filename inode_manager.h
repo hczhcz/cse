@@ -19,7 +19,6 @@
 #define U32MAP(g, l, p)   ((g) * U32MAP_TOTAL * 32 + (l) * 32 + (p))
 #define U32FILL           0xFFFFFFFF
 
-typedef uint32_t blockid_t;
 
 // disk layer -----------------------------------------
 
@@ -112,7 +111,7 @@ struct inode {
   unsigned int atime;
   unsigned int mtime;
   unsigned int ctime;
-  blockid_t blocks[NDIRECT+1];   // Data block addresses
+  uint32_t blocks[NDIRECT];   // Data block addresses
 };
 
 class inode_manager {
