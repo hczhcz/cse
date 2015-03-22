@@ -33,53 +33,133 @@ diskcache<T>::~diskcache() {
 
 // block layer -----------------------------------------
 
-// Allocate a free disk block.
-blockid_t
-block_manager::alloc_block()
-{
-  /*
-   * your lab1 code goes here.
-   * note: you should mark the corresponding bit in block bitmap when alloc.
-   * you need to think about which block you can start to be allocated.
+void block_manager::lock_block(uint32_t id) {
+  diskcache<struct superblock> sb(d, 0);
 
-   *hint: use macro IBLOCK and BBLOCK.
-          use bit operation.
-          remind yourself of the layout of disk.
-   */
-  return 0;
+  uint32_t g = U32MAP_GLOBAL(id);
+  uint32_t l = U32MAP_LOCAL(id);
+  uint32_t p = U32MAP_POS(id);
+
+  diskcache<struct mapblock> mb(d, g + 1);
+
+  // set 0
+  mb->map[l] &= ~(1 << p);
+
+  if (!mb->map[l]) {
+    uint32_t l_l = U32MAP_LOCAL(l);
+    uint32_t l_p = U32MAP_POS(l);
+
+    sb->metamap[g][l_l] &= ~(1 << l_p);
+  }
+}
+
+void block_manager::unlock_block(uint32_t id) {
+  diskcache<struct superblock> sb(d, 0);
+
+  uint32_t g = U32MAP_GLOBAL(id);
+  uint32_t l = U32MAP_LOCAL(id);
+  uint32_t p = U32MAP_POS(id);
+
+  diskcache<struct mapblock> mb(d, g + 1);
+
+  // set 1
+  mb->map[l] |= 1 << p;
+
+  if (mb->map[l]) {
+    uint32_t l_l = U32MAP_LOCAL(l);
+    uint32_t l_p = U32MAP_POS(l);
+
+    sb->metamap[g][l_l] |= 1 << l_p;
+  }
+}
+
+uint32_t de_bruijn_pos(uint32_t value) {
+  static const uint32_t map[32] = {
+    0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17, 4, 8,
+    31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18, 6, 11, 5, 10, 9
+  };
+
+  static const uint32_t dnum = 0x077CB531;
+
+  return map[uint32_t((value & -value) * dnum) >> 27];
+}
+
+blockid_t block_manager::pick_free_block() {
+  diskcache<struct superblock> sb(d, 0);
+
+  uint32_t g = sb->metamap_g;
+  do {
+    uint32_t l_l = sb->metamap_l_l;
+    do {
+      if (sb->metamap[g][l_l]) {
+        uint32_t l_p = de_bruijn_pos(sb->metamap[g][l_l]);
+        uint32_t l = U32MAP(0, l_l, l_p);
+
+        diskcache<struct mapblock> mb(d, g + 1);
+
+        uint32_t p = de_bruijn_pos(mb->map[l]);
+
+        // set 0
+        mb->map[l] &= ~(1 << p);
+        sb->metamap[g][l_l] &= ~(1 << l_p);
+
+        sb->metamap_g = g;
+        sb->metamap_l_l = l_l;
+
+        return U32MAP(g, l, p);
+      }
+
+      l_l = (l_l + 1) % (U32MAP_TOTAL / 32);
+    } while (l_l != sb->metamap_l_l);
+    g = (g + 1) % sb->nmaps;
+  } while (g != sb->metamap_g);
+
+  return -1; // disk is full
+}
+
+// Allocate a free disk block.
+blockid_t block_manager::alloc_block() {
+  return pick_free_block();
 }
 
 void
-block_manager::free_block(uint32_t id)
-{
-  /* 
-   * your lab1 code goes here.
-   * note: you should unmark the corresponding bit in the block bitmap when free.
-   */
+block_manager::free_block(uint32_t id) {
+  unlock_block(id);
 }
 
 // The layout of disk should be like this:
 // |<-sb->|<-free block bitmap->|<-inode table->|<-data->|
-block_manager::block_manager()
-{
+block_manager::block_manager() {
   d = new disk();
 
-  // format the disk
-  sb.size = BLOCK_SIZE * BLOCK_NUM;
-  sb.nblocks = BLOCK_NUM;
-  sb.ninodes = INODE_NUM;
+  diskcache<struct superblock> sb(d, 0);
 
+  // format the disk
+  sb->size = BLOCK_SIZE * BLOCK_NUM;
+  sb->nblocks = BLOCK_NUM;
+  sb->ninodes = INODE_NUM;
+  sb->nmaps = MAP_NUM;
+
+  sb->metamap_g = 0;
+  sb->metamap_l_l = 0;
+
+  for (uint32_t g = 0; g < sb->nmaps; ++g) {
+    diskcache<struct mapblock> mb(d, g + 1);
+
+    for (uint32_t l_l = 0; l_l < U32MAP_TOTAL / 32; ++l_l) {
+      for (uint32_t l_p = 0; l_p < 32; ++l_p) {
+        mb->map[U32MAP(0, l_l, l_p)] = U32FILL;
+      }
+      sb->metamap[g][l_l] = U32FILL;
+    }
+  }
 }
 
-void
-block_manager::read_block(uint32_t id, char *buf)
-{
+void block_manager::read_block(uint32_t id, char *buf) {
   d->read_block(id, buf);
 }
 
-void
-block_manager::write_block(uint32_t id, const char *buf)
-{
+void block_manager::write_block(uint32_t id, const char *buf) {
   d->write_block(id, buf);
 }
 

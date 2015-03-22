@@ -6,9 +6,18 @@
 #include <stdint.h>
 #include "extent_protocol.h"
 
-#define DISK_SIZE  1024*1024*16
-#define BLOCK_SIZE 512
-#define BLOCK_NUM  (DISK_SIZE/BLOCK_SIZE)
+#define DISK_SIZE         1024*1024*16
+#define BLOCK_SIZE        512
+
+#define BLOCK_NUM         (DISK_SIZE / BLOCK_SIZE)
+#define MAP_NUM           (BLOCK_NUM / BLOCK_SIZE / 8)
+
+#define U32MAP_TOTAL      (BLOCK_SIZE / 4)
+#define U32MAP_GLOBAL(i)  ((i) / 32 / U32MAP_TOTAL)
+#define U32MAP_LOCAL(i)   ((i) / 32 % U32MAP_TOTAL)
+#define U32MAP_POS(i)     ((i) % 32)
+#define U32MAP(g, l, p)   ((g) * U32MAP_TOTAL * 32 + (l) * 32 + (p))
+#define U32FILL           0xFFFFFFFF
 
 typedef uint32_t blockid_t;
 
@@ -47,15 +56,27 @@ struct superblock {
   uint32_t size;
   uint32_t nblocks;
   uint32_t ninodes;
+  uint32_t nmaps;
+  uint32_t metamap_g;
+  uint32_t metamap_l_l;
+  uint32_t metamap[MAP_NUM][U32MAP_TOTAL / 32];
+};
+
+struct mapblock {
+  uint32_t map[U32MAP_TOTAL];
 };
 
 class block_manager {
  private:
   disk *d;
   std::map <uint32_t, int> using_blocks;
+
+  void lock_block(uint32_t id);
+  void unlock_block(uint32_t id);
+  uint32_t pick_free_block();
+
  public:
   block_manager();
-  struct superblock sb;
 
   uint32_t alloc_block();
   void free_block(uint32_t id);
