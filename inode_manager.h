@@ -82,7 +82,7 @@ class block_manager {
  public:
   block_manager();
 
-  uint32_t alloc_block();
+  uint32_t alloc_block(bool check = true);
   void free_block(uint32_t id);
   void read_block(uint32_t id, char *buf);
   void write_block(uint32_t id, const char *buf);

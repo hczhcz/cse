@@ -50,6 +50,10 @@ diskcache<T>::~diskcache() {
 // block layer -----------------------------------------
 
 void block_manager::lock_block(uint32_t id) {
+  if (id < BLOCK_NUM) {
+    return;
+  }
+
   diskcache<struct superblock> sb(d, 0, true, true);
 
   uint32_t g = U32MAP_GLOBAL(id);
@@ -70,6 +74,10 @@ void block_manager::lock_block(uint32_t id) {
 }
 
 void block_manager::unlock_block(uint32_t id) {
+  if (id < BLOCK_NUM) {
+    return;
+  }
+
   diskcache<struct superblock> sb(d, 0, true, true);
 
   uint32_t g = U32MAP_GLOBAL(id);
@@ -137,8 +145,14 @@ uint32_t block_manager::pick_free_block() {
 }
 
 // Allocate a free disk block.
-uint32_t block_manager::alloc_block() {
-  return pick_free_block();
+uint32_t block_manager::alloc_block(bool check = true) {
+  uint32_t id = pick_free_block();
+
+  if (check && id < 0) {
+    throw 1; // ?
+  }
+
+  return id;
 }
 
 void block_manager::free_block(uint32_t id) {
@@ -302,8 +316,12 @@ void inode_manager::write_file(uint32_t inum, const char *buf, int size) {
               ni->map[j + 1] = bm->alloc_block();
               ++(ni->njnode);
             } else {
-              nj->map[(k + 1) % NMAP_J] = bm->alloc_block();
-              ++(ni->nknode);
+              if (j + 1 == NMAP_I) {
+                throw 2; // ?
+              } else {
+                nj->map[(k + 1) % NMAP_J] = bm->alloc_block();
+                ++(ni->nknode);
+              }
             }
           }
         } else {
