@@ -122,8 +122,7 @@ blockid_t block_manager::alloc_block() {
   return pick_free_block();
 }
 
-void
-block_manager::free_block(uint32_t id) {
+void block_manager::free_block(uint32_t id) {
   unlock_block(id);
 }
 

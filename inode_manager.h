@@ -93,7 +93,7 @@ class block_manager {
 //(BLOCK_SIZE / sizeof(struct inode))
 
 // Block containing inode i
-#define IBLOCK(i, nblocks)     ((nblocks)/BPB + (i)/IPB + 3)
+#define IBLOCK(i, nblocks)     0 // ((nblocks)/BPB + (i)/IPB + 3)
 
 // Bitmap bits per block
 #define BPB           (BLOCK_SIZE*8)
@@ -102,7 +102,7 @@ class block_manager {
 #define BBLOCK(b) ((b)/BPB + 2)
 
 #define NDIRECT 32
-#define NINDIRECT (BLOCK_SIZE / sizeof(uint32_t))
+#define NINDIRECT (BLOCK_SIZE / 4)
 #define MAXFILE (NDIRECT + NINDIRECT)
 
 struct inode {
