@@ -19,28 +19,44 @@ void disk::write_block(uint32_t id, const char *buf) {
 }
 
 template <class T>
-diskcache<T>::diskcache(disk *to_d, uint32_t to_id) {
+diskcache<T>::diskcache(block_manager *to_bm, uint32_t to_id, bool read, bool write) {
+  to_bm->direct_access(this);
+  id = to_id;
+
+  if (read) {
+    d->read_block(id, buf);
+  }
+  do_write = write;
+}
+
+template <class T>
+diskcache<T>::diskcache(disk *to_d, uint32_t to_id, bool read, bool write) {
   d = to_d;
   id = to_id;
 
-  d->read_block(id, buf);
+  if (read) {
+    d->read_block(id, buf);
+  }
+  do_write = write;
 }
 
 template <class T>
 diskcache<T>::~diskcache() {
-  d->write_block(id, buf);
+  if (do_write) {
+    d->write_block(id, buf);
+  }
 }
 
 // block layer -----------------------------------------
 
 void block_manager::lock_block(uint32_t id) {
-  diskcache<struct superblock> sb(d, 0);
+  diskcache<struct superblock> sb(d, 0, true, true);
 
   uint32_t g = U32MAP_GLOBAL(id);
   uint32_t l = U32MAP_LOCAL(id);
   uint32_t p = U32MAP_POS(id);
 
-  diskcache<struct mapblock> mb(d, g + 1);
+  diskcache<struct mapblock> mb(d, g + 1, true, true);
 
   // set 0
   mb->map[l] &= ~(1 << p);
@@ -54,13 +70,13 @@ void block_manager::lock_block(uint32_t id) {
 }
 
 void block_manager::unlock_block(uint32_t id) {
-  diskcache<struct superblock> sb(d, 0);
+  diskcache<struct superblock> sb(d, 0, true, true);
 
   uint32_t g = U32MAP_GLOBAL(id);
   uint32_t l = U32MAP_LOCAL(id);
   uint32_t p = U32MAP_POS(id);
 
-  diskcache<struct mapblock> mb(d, g + 1);
+  diskcache<struct mapblock> mb(d, g + 1, true, true);
 
   // set 1
   mb->map[l] |= 1 << p;
@@ -85,7 +101,7 @@ uint32_t de_bruijn_pos(uint32_t value) {
 }
 
 uint32_t block_manager::pick_free_block() {
-  diskcache<struct superblock> sb(d, 0);
+  diskcache<struct superblock> sb(d, 0, true, true);
 
   uint32_t g = sb->metamap_g;
   do {
@@ -95,7 +111,7 @@ uint32_t block_manager::pick_free_block() {
         uint32_t l_p = de_bruijn_pos(sb->metamap[g][l_l]);
         uint32_t l = U32MAP(0, l_l, l_p);
 
-        diskcache<struct mapblock> mb(d, g + 1);
+        diskcache<struct mapblock> mb(d, g + 1, true, true);
 
         uint32_t p = de_bruijn_pos(mb->map[l]);
 
@@ -134,7 +150,7 @@ void block_manager::free_block(uint32_t id) {
 block_manager::block_manager() {
   d = new disk();
 
-  diskcache<struct superblock> sb(d, 0);
+  diskcache<struct superblock> sb(d, 0, false, true);
 
   // format the disk
   sb->size = BLOCK_SIZE * BLOCK_NUM;
@@ -145,7 +161,7 @@ block_manager::block_manager() {
   sb->metamap_l_l = 0;
 
   for (uint32_t g = 0; g < sb->nmaps; ++g) {
-    diskcache<struct mapblock> mb(d, g + 1);
+    diskcache<struct mapblock> mb(d, g + 1, false, true);
 
     for (uint32_t l_l = 0; l_l < U32MAP_TOTAL / 32; ++l_l) {
       for (uint32_t l_p = 0; l_p < 32; ++l_p) {
@@ -156,7 +172,7 @@ block_manager::block_manager() {
   }
 
   // lock sb and mb
-  diskcache<struct mapblock> mmb(d, 1);
+  diskcache<struct mapblock> mmb(d, 1, true, true);
   mmb->map[0] &= ~((1 << (1 + sb->nmaps)) - 1);
 }
 
@@ -166,6 +182,11 @@ void block_manager::read_block(uint32_t id, char *buf) {
 
 void block_manager::write_block(uint32_t id, const char *buf) {
   d->write_block(id, buf);
+}
+
+template <class T>
+void block_manager::direct_access(diskcache<T> *dc) {
+  dc->d = d;
 }
 
 // inode layer -----------------------------------------

@@ -31,16 +31,22 @@ class disk {
   void write_block(uint32_t id, const char *buf);
 };
 
+class block_manager;
+
 template <class T>
 class diskcache {
  private:
   disk *d;
   uint32_t id;
+  bool do_write;
 
   char buf[BLOCK_SIZE];
 
  public:
-  diskcache(disk *to_d, uint32_t to_id);
+  friend class block_manager;
+
+  diskcache(block_manager *to_bm, uint32_t to_id, bool read, bool write);
+  diskcache(disk *to_d, uint32_t to_id, bool read, bool write);
   ~diskcache();
 
   inline T *operator->() {
@@ -79,6 +85,8 @@ class block_manager {
   void free_block(uint32_t id);
   void read_block(uint32_t id, char *buf);
   void write_block(uint32_t id, const char *buf);
+  template <class T>
+  void direct_access(diskcache<T> *dc);
 };
 
 // inode layer -----------------------------------------
