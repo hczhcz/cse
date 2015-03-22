@@ -97,6 +97,11 @@ class block_manager {
 #define NDATA_MIXED (BLOCK_SIZE / 2)
 #define NDATA_FULL BLOCK_SIZE
 
+// #define NMAP_TRUNC(k) (((k) >= NMAP_J) ? NMAP_J : (k))
+// #define NMAP_TRUNC_2(k, j) NMAP_TRUNC((k) - (j) * NMAP_J)
+#define NDATA_MIXED_TRUNC(x) (((x) >= NDATA_MIXED) ? NDATA_MIXED : (x))
+#define NDATA_FULL_TRUNC(x) (((x) >= NDATA_FULL) ? NDATA_FULL : (x))
+
 struct inode {
   uint32_t map[NMAP_I];
   uint32_t njnode;

@@ -229,7 +229,6 @@ uint32_t inode_manager::alloc_inode(uint32_t type) {
 }
 
 void inode_manager::free_inode(uint32_t inum) {
-  // TODO: need a map: inum -> actual block id
   // TODO: all arguments should be checked!!!
 
   bm->free_block(addr_inum(inum));
@@ -239,22 +238,94 @@ void inode_manager::free_inode(uint32_t inum) {
 /* Get all the data of a file by inum. 
  * Return alloced data, should be freed by caller. */
 void inode_manager::read_file(uint32_t inum, char **buf_out, int *size) {
-  /*
-   * your lab1 code goes here.
-   * note: read blocks related to inode number inum,
-   * and copy them to buf_out
-   */
+  diskcache<struct inode> ni(bm, addr_inum(inum), true, true);
+
+  ni->attr.atime = time(0);
+  *size = ni->attr.size;
+  char *begin = (char *) malloc(ni->attr.size);
+  char *end = begin + ni->attr.size;
+  *buf_out = begin;
+
+  memcpy(begin, ni->data, NDATA_MIXED_TRUNC(end - begin));
+  begin += NDATA_MIXED;
+
+  uint32_t j = 0;
+  uint32_t k = 0;
+  for (; j < ni->njnode; ++j) {
+    diskcache<struct inode> nj(bm, ni->map[j], true, false);
+
+    memcpy(begin, nj->data, NDATA_MIXED_TRUNC(end - begin));
+    begin += NDATA_MIXED;
+
+    for (; k < ni->nknode && k < (ni->njnode + 1) * NMAP_J; ++k) {
+      diskcache<struct inode> nk(bm, nj->map[k % NMAP_J], true, false);
+
+      memcpy(begin, nk->data, NDATA_FULL_TRUNC(end - begin));
+      begin += NDATA_FULL;
+    }
+  }
 }
 
 /* alloc/free blocks if needed */
 void inode_manager::write_file(uint32_t inum, const char *buf, int size) {
-  /*
-   * your lab1 code goes here.
-   * note: write buf to blocks of inode inum.
-   * you need to consider the situation when the size of buf 
-   * is larger or smaller than the size of original inode.
-   * you should free some blocks if necessary.
-   */
+  diskcache<struct inode> ni(bm, addr_inum(inum), true, true);
+
+  ni->attr.atime = time(0);
+  ni->attr.mtime = time(0);
+  ni->attr.size = size;
+  const char *begin = buf;
+  const char *end = begin + size;
+
+  memcpy(ni->data, begin, NDATA_MIXED_TRUNC(end - begin));
+  begin += NDATA_MIXED;
+
+  uint32_t j = 0;
+  uint32_t k = 0;
+  uint32_t jdel = 0;
+  uint32_t kdel = 0;
+  for (; j < ni->njnode; ++j) {
+    if (begin < end) {
+      diskcache<struct inode> nj(bm, ni->map[j], true, true);
+
+      memcpy(nj->data, begin, NDATA_MIXED_TRUNC(end - begin));
+      begin += NDATA_MIXED;
+
+      for (; k < ni->nknode && k < (ni->njnode + 1) * NMAP_J; ++k) {
+        if (begin < end) {
+          diskcache<struct inode> nk(bm, nj->map[k % NMAP_J], true, true);
+
+          memcpy(nk->data, begin, NDATA_FULL_TRUNC(end - begin));
+          begin += NDATA_FULL;
+
+          if (k == ni->nknode - 1) {
+            if (k + 1 == (j + 1) * NMAP_J) {
+              ni->map[j + 1] = bm->alloc_block();
+              ++(ni->njnode);
+            } else {
+              nj->map[(k + 1) % NMAP_J] = bm->alloc_block();
+              ++(ni->nknode);
+            }
+          }
+        } else {
+          ++kdel;
+          bm->free_block(nj->map[k % NMAP_J]);
+        }
+      }
+    } else {
+      diskcache<struct inode> nj(bm, ni->map[j], true, false);
+
+      for (; k < ni->nknode && k < (ni->njnode + 1) * NMAP_J; ++k) {
+        ++kdel;
+        bm->free_block(nj->map[k % NMAP_J]);
+      }
+
+      ++jdel;
+      bm->free_block(ni->map[j]);
+    }
+  }
+
+  ni->njnode -= jdel;
+  ni->nknode -= kdel;
 }
 
 void inode_manager::getattr(uint32_t inum, extent_protocol::attr &a) {
@@ -266,12 +337,13 @@ void inode_manager::getattr(uint32_t inum, extent_protocol::attr &a) {
 void inode_manager::remove_file(uint32_t inum) {
   diskcache<struct inode> ni(bm, addr_inum(inum), true, false);
 
-  for (uint32_t j = 0; j < ni->njnode; ++j) {
+  uint32_t j = 0;
+  uint32_t k = 0;
+  for (; j < ni->njnode; ++j) {
     diskcache<struct inode> nj(bm, ni->map[j], true, false);
 
-    uint32_t klim = (j == ni->njnode - 1) ? ni->nknode : NMAP_J;
-    for (uint32_t k = 0; k < klim; ++k) {
-      bm->free_block(nj->map[k]);
+    for (; k < ni->nknode && k < (ni->njnode + 1) * NMAP_J; ++k) {
+      bm->free_block(nj->map[k % NMAP_J]);
     }
 
     bm->free_block(ni->map[j]);
