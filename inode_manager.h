@@ -24,6 +24,23 @@ class disk {
   void write_block(uint32_t id, const char *buf);
 };
 
+template <class T>
+class diskcache {
+ private:
+  disk *d;
+  uint32_t id;
+
+  char buf[BLOCK_SIZE];
+
+ public:
+  diskcache(disk *to_d, uint32_t to_id);
+  ~diskcache();
+
+  inline T *operator->() {
+    return ((T *) &buf);
+  }
+};
+
 // block layer -----------------------------------------
 
 struct superblock {

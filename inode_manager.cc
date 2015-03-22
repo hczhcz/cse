@@ -2,38 +2,33 @@
 
 // disk layer -----------------------------------------
 
-disk::disk()
-{
+disk::disk() {
   bzero(blocks, sizeof(blocks));
 }
 
-void
-disk::read_block(blockid_t id, char *buf)
-{
-  /*
-   *your lab1 code goes here.
-   *if id is smaller than 0 or larger than BLOCK_NUM 
-   *or buf is null, just return.
-   *put the content of target block into buf.
-   *hint: use memcpy
-  */
-
-  if (id >= 0 && id < BLOCK_NUM) {
+void disk::read_block(blockid_t id, char *buf) {
+  if (id >= 0 && id < BLOCK_NUM && buf) {
     memcpy(buf, blocks[id], BLOCK_SIZE);
   }
 }
 
-void
-disk::write_block(blockid_t id, const char *buf)
-{
-  /*
-   *your lab1 code goes here.
-   *hint: just like read_block
-  */
-
-  if (id >= 0 && id < BLOCK_NUM) {
+void disk::write_block(blockid_t id, const char *buf) {
+  if (id >= 0 && id < BLOCK_NUM && buf) {
     memcpy(blocks[id], buf, BLOCK_SIZE);
   }
+}
+
+template <class T>
+diskcache<T>::diskcache(disk *to_d, uint32_t to_id) {
+  d = to_d;
+  id = to_id;
+
+  d->read_block(id, buf);
+}
+
+template <class T>
+diskcache<T>::~diskcache() {
+  d->write_block(id, buf);
 }
 
 // block layer -----------------------------------------
