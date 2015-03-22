@@ -198,78 +198,43 @@ inode_manager::inode_manager() {
   }
 }
 
+uint32_t inode_manager::alloc_inum(uint32_t block_id) {
+  return block_id - 8;
+}
+
+uint32_t inode_manager::addr_inum(uint32_t inum) {
+  return inum + 8;
+}
+
+void inode_manager::free_inum(uint32_t inum) {
+  //
+}
+
 /* Create a new file.
  * Return its inum. */
 uint32_t inode_manager::alloc_inode(uint32_t type) {
-  uint32_t inum = bm->alloc_block();
-  diskcache<struct inode> node(bm, inum, false, true);
+  uint32_t inum = alloc_inum(bm->alloc_block());
+  diskcache<struct inode> ni(bm, addr_inum(inum), false, true);
 
-  node->alive = true;
-  node->njnode = 0;
-  node->nknode = 0;
+  ni->njnode = 0;
+  ni->nknode = 0;
 
-  node->attr.type = type;
-  node->attr.atime = time(0);
-  node->attr.mtime = time(0);
-  node->attr.ctime = time(0);
-  node->attr.size = 0;
+  ni->attr.type = type;
+  ni->attr.atime = time(0);
+  ni->attr.mtime = time(0);
+  ni->attr.ctime = time(0);
+  ni->attr.size = 0;
 
   return inum;
 }
 
 void inode_manager::free_inode(uint32_t inum) {
-  /* 
-   * your lab1 code goes here.
-   * note: you need to check if the inode is already a freed one;
-   * if not, clear it, and remember to write back to disk.
-   * do not forget to free memory if necessary.
-   */
+  // TODO: need a map: inum -> actual block id
+  // TODO: all arguments should be checked!!!
+
+  bm->free_block(addr_inum(inum));
 }
 
-
-/* Return an inode structure by inum, NULL otherwise.
- * Caller should release the memory. */
-struct inode* inode_manager::get_inode(uint32_t inum) {
-  // struct inode *ino, *ino_disk;
-  // char buf[BLOCK_SIZE];
-
-  // printf("\tim: get_inode %d\n", inum);
-
-  // if (inum < 0 || inum >= INODE_NUM) {
-  //   printf("\tim: inum out of range\n");
-  //   return NULL;
-  // }
-
-  // bm->read_block(IBLOCK(inum, bm->sb.nblocks), buf);
-  // // printf("%s:%d\n", __FILE__, __LINE__);
-
-  // ino_disk = (struct inode*)buf + inum%IPB;
-  // if (ino_disk->type == 0) {
-  //   printf("\tim: inode not exist\n");
-  //   return NULL;
-  // }
-
-  // ino = (struct inode*)malloc(sizeof(struct inode));
-  // *ino = *ino_disk;
-
-  // return ino;
-}
-
-void inode_manager::put_inode(uint32_t inum, struct inode *ino) {
-  // char buf[BLOCK_SIZE];
-  // struct inode *ino_disk;
-
-  // printf("\tim: put_inode %d\n", inum);
-  // if (ino == NULL)
-  //   return;
-
-  // bm->read_block(IBLOCK(inum, bm->sb.nblocks), buf);
-  // ino_disk = (struct inode*)buf + inum%IPB;
-  // *ino_disk = *ino;
-  // bm->write_block(IBLOCK(inum, bm->sb.nblocks), buf);
-}
-
-#define MIN(a,b) ((a)<(b) ? (a) : (b))
 
 /* Get all the data of a file by inum. 
  * Return alloced data, should be freed by caller. */
@@ -293,17 +258,24 @@ void inode_manager::write_file(uint32_t inum, const char *buf, int size) {
 }
 
 void inode_manager::getattr(uint32_t inum, extent_protocol::attr &a) {
-  /*
-   * your lab1 code goes here.
-   * note: get the attributes of inode inum.
-   * you can refer to "struct attr" in extent_protocol.h
-   */
+  diskcache<struct inode> ni(bm, addr_inum(inum), true, false);
+
+  a = ni->attr;
 }
 
 void inode_manager::remove_file(uint32_t inum) {
-  /*
-   * your lab1 code goes here
-   * note: you need to consider about both the data block and inode of the file
-   * do not forget to free memory if necessary.
-   */
+  diskcache<struct inode> ni(bm, addr_inum(inum), true, false);
+
+  for (uint32_t j = 0; j < ni->njnode; ++j) {
+    diskcache<struct inode> nj(bm, ni->map[j], true, false);
+
+    uint32_t klim = (j == ni->njnode - 1) ? ni->nknode : NMAP_J;
+    for (uint32_t k = 0; k < klim; ++k) {
+      bm->free_block(nj->map[k]);
+    }
+
+    bm->free_block(ni->map[j]);
+  }
+
+  free_inode(inum);
 }

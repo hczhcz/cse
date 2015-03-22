@@ -98,8 +98,7 @@ class block_manager {
 #define NDATA_FULL BLOCK_SIZE
 
 struct inode {
-  uint32_t blocks[NMAP_I];
-  bool alive;
+  uint32_t map[NMAP_I];
   uint32_t njnode;
   uint32_t nknode;
   extent_protocol::attr attr;
@@ -118,8 +117,10 @@ struct knode {
 class inode_manager {
  private:
   block_manager *bm;
-  struct inode* get_inode(uint32_t inum);
-  void put_inode(uint32_t inum, struct inode *ino);
+
+  uint32_t alloc_inum(uint32_t block_id);
+  uint32_t addr_inum(uint32_t inum);
+  void free_inum(uint32_t inum);
 
  public:
   inode_manager();
