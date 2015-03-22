@@ -19,7 +19,6 @@
 #define U32MAP(g, l, p)   ((g) * U32MAP_TOTAL * 32 + (l) * 32 + (p))
 #define U32FILL           0xFFFFFFFF
 
-
 // disk layer -----------------------------------------
 
 class disk {
@@ -54,7 +53,6 @@ class diskcache {
 struct superblock {
   uint32_t size;
   uint32_t nblocks;
-  uint32_t ninodes;
   uint32_t nmaps;
   uint32_t metamap_g;
   uint32_t metamap_l_l;
@@ -85,33 +83,45 @@ class block_manager {
 
 // inode layer -----------------------------------------
 
-#define INODE_NUM  1024
+// #define INODE_NUM  1024
 
-// Inodes per block.
-#define IPB           1
-//(BLOCK_SIZE / sizeof(struct inode))
+// // Inodes per block.
+// #define IPB           1
+// //(BLOCK_SIZE / sizeof(struct inode))
 
-// Block containing inode i
-#define IBLOCK(i, nblocks)     0 // ((nblocks)/BPB + (i)/IPB + 3)
+// // Block containing inode i
+// #define IBLOCK(i, nblocks)     0 // ((nblocks)/BPB + (i)/IPB + 3)
 
-// Bitmap bits per block
-#define BPB           (BLOCK_SIZE*8)
+// // Bitmap bits per block
+// #define BPB           (BLOCK_SIZE*8)
 
-// Block containing bit for block b
-#define BBLOCK(b) ((b)/BPB + 2)
+// // Block containing bit for block b
+// #define BBLOCK(b) ((b)/BPB + 2)
 
-#define NDIRECT 32
-#define NINDIRECT (BLOCK_SIZE / 4)
-#define MAXFILE (NDIRECT + NINDIRECT)
+// #define NDIRECT 32
+// #define NINDIRECT (BLOCK_SIZE / 4)
+// #define MAXFILE (NDIRECT + NINDIRECT)
+
+#define NMAP_I (U32MAP_TOTAL / 4)
+#define NMAP_J (U32MAP_TOTAL / 2)
+#define NDATA_MIXED (BLOCK_SIZE / 2)
+#define NDATA_FULL BLOCK_SIZE
+
+#define NDIRECT 16
 
 struct inode {
-  //short type;
-  unsigned int type;
-  unsigned int size;
-  unsigned int atime;
-  unsigned int mtime;
-  unsigned int ctime;
-  uint32_t blocks[NDIRECT];   // Data block addresses
+  uint32_t blocks[NMAP_I];
+  extent_protocol::attr attr;
+  char data[NDATA_MIXED];
+};
+
+struct jnode {
+  uint32_t map[NMAP_J];
+  char data[NDATA_MIXED];
+};
+
+struct knode {
+  char data[NDATA_FULL];
 };
 
 class inode_manager {
@@ -131,4 +141,3 @@ class inode_manager {
 };
 
 #endif
-

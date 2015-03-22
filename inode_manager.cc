@@ -139,7 +139,6 @@ block_manager::block_manager() {
   // format the disk
   sb->size = BLOCK_SIZE * BLOCK_NUM;
   sb->nblocks = BLOCK_NUM;
-  sb->ninodes = INODE_NUM;
   sb->nmaps = MAP_NUM;
 
   sb->metamap_g = 0;
@@ -171,8 +170,7 @@ void block_manager::write_block(uint32_t id, const char *buf) {
 
 // inode layer -----------------------------------------
 
-inode_manager::inode_manager()
-{
+inode_manager::inode_manager() {
   bm = new block_manager();
   uint32_t root_dir = alloc_inode(extent_protocol::T_DIR);
   if (root_dir != 1) {
@@ -183,22 +181,21 @@ inode_manager::inode_manager()
 
 /* Create a new file.
  * Return its inum. */
-uint32_t
-inode_manager::alloc_inode(uint32_t type)
-{
-  /* 
-   * your lab1 code goes here.
-   * note: the normal inode block should begin from the 2nd inode block.
-   * the 1st is used for root_dir, see inode_manager::inode_manager().
-    
-   * if you get some heap memory, do not forget to free it.
-   */
-  return 1;
+uint32_t inode_manager::alloc_inode(uint32_t type) {
+  inode node;
+  node.attr.type = type;
+  node.attr.atime = time(0);
+  node.attr.mtime = time(0);
+  node.attr.ctime = time(0);
+  node.attr.size = 0;
+
+  uint32_t result = bm->alloc_block();
+  bm->write_block(result, (char *) &node);
+
+  return result;
 }
 
-void
-inode_manager::free_inode(uint32_t inum)
-{
+void inode_manager::free_inode(uint32_t inum) {
   /* 
    * your lab1 code goes here.
    * note: you need to check if the inode is already a freed one;
@@ -210,57 +207,51 @@ inode_manager::free_inode(uint32_t inum)
 
 /* Return an inode structure by inum, NULL otherwise.
  * Caller should release the memory. */
-struct inode* 
-inode_manager::get_inode(uint32_t inum)
-{
-  struct inode *ino, *ino_disk;
-  char buf[BLOCK_SIZE];
+struct inode* inode_manager::get_inode(uint32_t inum) {
+  // struct inode *ino, *ino_disk;
+  // char buf[BLOCK_SIZE];
 
-  printf("\tim: get_inode %d\n", inum);
+  // printf("\tim: get_inode %d\n", inum);
 
-  if (inum < 0 || inum >= INODE_NUM) {
-    printf("\tim: inum out of range\n");
-    return NULL;
-  }
+  // if (inum < 0 || inum >= INODE_NUM) {
+  //   printf("\tim: inum out of range\n");
+  //   return NULL;
+  // }
 
-  bm->read_block(IBLOCK(inum, bm->sb.nblocks), buf);
-  // printf("%s:%d\n", __FILE__, __LINE__);
+  // bm->read_block(IBLOCK(inum, bm->sb.nblocks), buf);
+  // // printf("%s:%d\n", __FILE__, __LINE__);
 
-  ino_disk = (struct inode*)buf + inum%IPB;
-  if (ino_disk->type == 0) {
-    printf("\tim: inode not exist\n");
-    return NULL;
-  }
+  // ino_disk = (struct inode*)buf + inum%IPB;
+  // if (ino_disk->type == 0) {
+  //   printf("\tim: inode not exist\n");
+  //   return NULL;
+  // }
 
-  ino = (struct inode*)malloc(sizeof(struct inode));
-  *ino = *ino_disk;
+  // ino = (struct inode*)malloc(sizeof(struct inode));
+  // *ino = *ino_disk;
 
-  return ino;
+  // return ino;
 }
 
-void
-inode_manager::put_inode(uint32_t inum, struct inode *ino)
-{
-  char buf[BLOCK_SIZE];
-  struct inode *ino_disk;
+void inode_manager::put_inode(uint32_t inum, struct inode *ino) {
+  // char buf[BLOCK_SIZE];
+  // struct inode *ino_disk;
 
-  printf("\tim: put_inode %d\n", inum);
-  if (ino == NULL)
-    return;
+  // printf("\tim: put_inode %d\n", inum);
+  // if (ino == NULL)
+  //   return;
 
-  bm->read_block(IBLOCK(inum, bm->sb.nblocks), buf);
-  ino_disk = (struct inode*)buf + inum%IPB;
-  *ino_disk = *ino;
-  bm->write_block(IBLOCK(inum, bm->sb.nblocks), buf);
+  // bm->read_block(IBLOCK(inum, bm->sb.nblocks), buf);
+  // ino_disk = (struct inode*)buf + inum%IPB;
+  // *ino_disk = *ino;
+  // bm->write_block(IBLOCK(inum, bm->sb.nblocks), buf);
 }
 
 #define MIN(a,b) ((a)<(b) ? (a) : (b))
 
 /* Get all the data of a file by inum. 
  * Return alloced data, should be freed by caller. */
-void
-inode_manager::read_file(uint32_t inum, char **buf_out, int *size)
-{
+void inode_manager::read_file(uint32_t inum, char **buf_out, int *size) {
   /*
    * your lab1 code goes here.
    * note: read blocks related to inode number inum,
@@ -269,9 +260,7 @@ inode_manager::read_file(uint32_t inum, char **buf_out, int *size)
 }
 
 /* alloc/free blocks if needed */
-void
-inode_manager::write_file(uint32_t inum, const char *buf, int size)
-{
+void inode_manager::write_file(uint32_t inum, const char *buf, int size) {
   /*
    * your lab1 code goes here.
    * note: write buf to blocks of inode inum.
@@ -281,9 +270,7 @@ inode_manager::write_file(uint32_t inum, const char *buf, int size)
    */
 }
 
-void
-inode_manager::getattr(uint32_t inum, extent_protocol::attr &a)
-{
+void inode_manager::getattr(uint32_t inum, extent_protocol::attr &a) {
   /*
    * your lab1 code goes here.
    * note: get the attributes of inode inum.
@@ -291,9 +278,7 @@ inode_manager::getattr(uint32_t inum, extent_protocol::attr &a)
    */
 }
 
-void
-inode_manager::remove_file(uint32_t inum)
-{
+void inode_manager::remove_file(uint32_t inum) {
   /*
    * your lab1 code goes here
    * note: you need to consider about both the data block and inode of the file
