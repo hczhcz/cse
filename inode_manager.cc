@@ -50,7 +50,7 @@ diskcache<T>::~diskcache() {
 // block layer -----------------------------------------
 
 void block_manager::lock_block(uint32_t id) {
-  if (id < BLOCK_NUM) {
+  if (id >= BLOCK_NUM) {
     return;
   }
 
@@ -74,7 +74,7 @@ void block_manager::lock_block(uint32_t id) {
 }
 
 void block_manager::unlock_block(uint32_t id) {
-  if (id < BLOCK_NUM) {
+  if (id >= BLOCK_NUM) {
     return;
   }
 
@@ -145,7 +145,7 @@ uint32_t block_manager::pick_free_block() {
 }
 
 // Allocate a free disk block.
-uint32_t block_manager::alloc_block(bool check = true) {
+uint32_t block_manager::alloc_block(bool check) {
   uint32_t id = pick_free_block();
 
   if (check && id < 0) {
@@ -206,10 +206,6 @@ void block_manager::direct_access(diskcache<T> *dc) {
 inode_manager::inode_manager() {
   bm = new block_manager();
   uint32_t root_dir = alloc_inode(extent_protocol::T_DIR);
-  if (root_dir != 1) {
-    printf("\tim: error! alloc first inode %d, should be 1\n", root_dir);
-    exit(0);
-  }
 }
 
 uint32_t inode_manager::alloc_inum(uint32_t block_id) {
@@ -246,6 +242,7 @@ void inode_manager::free_inode(uint32_t inum) {
   // TODO: all arguments should be checked!!!
 
   bm->free_block(addr_inum(inum));
+  free_inum(inum);
 }
 
 
@@ -282,6 +279,10 @@ void inode_manager::read_file(uint32_t inum, char **buf_out, int *size) {
 
 /* alloc/free blocks if needed */
 void inode_manager::write_file(uint32_t inum, const char *buf, int size) {
+  if (!buf) {
+    return;
+  }
+
   diskcache<struct inode> ni(bm, addr_inum(inum), true, true);
 
   ni->attr.atime = time(0);
