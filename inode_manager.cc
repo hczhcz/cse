@@ -50,11 +50,11 @@ diskcache<T>::~diskcache() {
 // block layer -----------------------------------------
 
 void block_manager::lock_block(uint32_t id) {
-  if (id >= BLOCK_NUM) {
+  diskcache<struct superblock> sb(d, 0, true, true);
+
+  if (id >= sb->nblocks) {
     return;
   }
-
-  diskcache<struct superblock> sb(d, 0, true, true);
 
   uint32_t g = U32MAP_GLOBAL(id);
   uint32_t l = U32MAP_LOCAL(id);
@@ -74,11 +74,11 @@ void block_manager::lock_block(uint32_t id) {
 }
 
 void block_manager::unlock_block(uint32_t id) {
-  if (id >= BLOCK_NUM) {
+  diskcache<struct superblock> sb(d, 0, true, true);
+
+  if (id >= sb->nblocks) {
     return;
   }
-
-  diskcache<struct superblock> sb(d, 0, true, true);
 
   uint32_t g = U32MAP_GLOBAL(id);
   uint32_t l = U32MAP_LOCAL(id);
@@ -141,14 +141,14 @@ uint32_t block_manager::pick_free_block() {
     g = (g + 1) % sb->nmaps;
   } while (g != sb->metamap_g);
 
-  return -1; // disk is full
+  return 0; // disk is full
 }
 
 // Allocate a free disk block.
 uint32_t block_manager::alloc_block(bool check) {
   uint32_t id = pick_free_block();
 
-  if (check && id < 0) {
+  if (check && !id) {
     throw 1; // ?
   }
 
@@ -205,7 +205,7 @@ void block_manager::direct_access(diskcache<T> *dc) {
 
 inode_manager::inode_manager() {
   bm = new block_manager();
-  uint32_t root_dir = alloc_inode(extent_protocol::T_DIR);
+  root_id = alloc_inode(extent_protocol::T_DIR);
 }
 
 uint32_t inode_manager::alloc_inum(uint32_t block_id) {
@@ -213,6 +213,8 @@ uint32_t inode_manager::alloc_inum(uint32_t block_id) {
 }
 
 uint32_t inode_manager::addr_inum(uint32_t inum) {
+  // TODO: is inum valid?
+
   return inum + 8;
 }
 

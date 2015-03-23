@@ -123,6 +123,8 @@ class inode_manager {
  private:
   block_manager *bm;
 
+  uint32_t root_id;
+
   uint32_t alloc_inum(uint32_t block_id);
   uint32_t addr_inum(uint32_t inum);
   void free_inum(uint32_t inum);
