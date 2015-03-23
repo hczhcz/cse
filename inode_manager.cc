@@ -294,13 +294,13 @@ void inode_manager::read_file(uint32_t inum, char **buf_out, int *size) {
   uint32_t j = 0;
   uint32_t k = 0;
   for (; j < ni->njnode; ++j) {
-    diskcache<struct inode> nj(bm, ni->map[j], true, false);
+    diskcache<struct jnode> nj(bm, ni->map[j], true, false);
 
     memcpy(begin, nj->data, NDATA_MIXED_TRUNC(end - begin));
     begin += NDATA_MIXED;
 
     for (; k < ni->nknode && k < (ni->njnode + 1) * NMAP_J; ++k) {
-      diskcache<struct inode> nk(bm, nj->map[k % NMAP_J], true, false);
+      diskcache<struct knode> nk(bm, nj->map[k % NMAP_J], true, false);
 
       memcpy(begin, nk->data, NDATA_FULL_TRUNC(end - begin));
       begin += NDATA_FULL;
@@ -333,40 +333,44 @@ void inode_manager::write_file(uint32_t inum, const char *buf, int size) {
   uint32_t k = 0;
   uint32_t jdel = 0;
   uint32_t kdel = 0;
-  for (; j < ni->njnode; ++j) {
+  for (; j < ni->njnode || begin < end; ++j) {
     if (begin < end) {
-      diskcache<struct inode> nj(bm, ni->map[j], true, true);
+      if (j == ni->njnode) {
+        if (j == NMAP_I) {
+          throw 2; // ?
+        } else {
+          ni->map[j] = bm->alloc_block();
+          ++(ni->njnode);
+        }
+      }
+
+      diskcache<struct jnode> nj(bm, ni->map[j], true, true);
 
       memcpy(nj->data, begin, NDATA_MIXED_TRUNC(end - begin));
       begin += NDATA_MIXED;
 
-      for (; k < ni->nknode && k < (ni->njnode + 1) * NMAP_J; ++k) {
+      for (; k < ni->nknode || begin < end; ++k) {
+        if (k == (ni->njnode + 1) * NMAP_J) {
+          break;
+        }
+
         if (begin < end) {
-          diskcache<struct inode> nk(bm, nj->map[k % NMAP_J], true, true);
+          if (k == ni->nknode) {
+            nj->map[k % NMAP_J] = bm->alloc_block();
+            ++(ni->nknode);
+          }
+
+          diskcache<struct knode> nk(bm, nj->map[k % NMAP_J], true, true);
 
           memcpy(nk->data, begin, NDATA_FULL_TRUNC(end - begin));
           begin += NDATA_FULL;
-
-          if (k == ni->nknode - 1) {
-            if (k + 1 == (j + 1) * NMAP_J) {
-              ni->map[j + 1] = bm->alloc_block();
-              ++(ni->njnode);
-            } else {
-              if (j + 1 == NMAP_I) {
-                throw 2; // ?
-              } else {
-                nj->map[(k + 1) % NMAP_J] = bm->alloc_block();
-                ++(ni->nknode);
-              }
-            }
-          }
         } else {
           ++kdel;
           bm->free_block(nj->map[k % NMAP_J]);
         }
       }
     } else {
-      diskcache<struct inode> nj(bm, ni->map[j], true, false);
+      diskcache<struct jnode> nj(bm, ni->map[j], true, false);
 
       for (; k < ni->nknode && k < (ni->njnode + 1) * NMAP_J; ++k) {
         ++kdel;
@@ -402,7 +406,7 @@ void inode_manager::remove_file(uint32_t inum) {
   uint32_t j = 0;
   uint32_t k = 0;
   for (; j < ni->njnode; ++j) {
-    diskcache<struct inode> nj(bm, ni->map[j], true, false);
+    diskcache<struct jnode> nj(bm, ni->map[j], true, false);
 
     for (; k < ni->nknode && k < (ni->njnode + 1) * NMAP_J; ++k) {
       bm->free_block(nj->map[k % NMAP_J]);
