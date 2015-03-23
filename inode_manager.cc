@@ -141,14 +141,14 @@ uint32_t block_manager::pick_free_block() {
     g = (g + 1) % sb->nmaps;
   } while (g != sb->metamap_g);
 
-  return 0; // disk is full
+  return U32FILL; // disk is full
 }
 
 // Allocate a free disk block.
 uint32_t block_manager::alloc_block(bool check) {
   uint32_t id = pick_free_block();
 
-  if (check && !id) {
+  if (check && id == uint32_t(U32FILL)) {
     throw 1; // ?
   }
 
@@ -225,11 +225,12 @@ uint32_t inode_manager::addr_inum(uint32_t inum) {
 }
 
 bool inode_manager::chk_inum(uint32_t inum) {
-  diskcache<struct inode> ni(bm, inum + 8, true, false);
+  diskcache<struct inode> ni(bm, addr_inum(inum), true, false);
 
   if (ni->chk1 != inode_chk1(inum, ni->rtag)) {
     return false;
   }
+
   if (ni->chk2 != inode_chk2(inum, ni->rtag)) {
     return false;
   }
