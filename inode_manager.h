@@ -104,9 +104,14 @@ class block_manager {
 
 struct inode {
   uint32_t map[NMAP_I];
+
   uint32_t njnode;
   uint32_t nknode;
+  uint32_t rtag;
+  uint32_t chk1;
+  uint32_t chk2;
   extent_protocol::attr attr;
+
   char data[NDATA_MIXED];
 };
 
@@ -127,6 +132,7 @@ class inode_manager {
 
   uint32_t alloc_inum(uint32_t block_id);
   uint32_t addr_inum(uint32_t inum);
+  bool chk_inum(uint32_t inum);
   void free_inum(uint32_t inum);
 
  public:

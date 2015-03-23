@@ -203,6 +203,14 @@ void block_manager::direct_access(diskcache<T> *dc) {
 
 // inode layer -----------------------------------------
 
+uint32_t inode_chk1(uint32_t a, uint32_t b) {
+  return (~a * 0xDEADBEEF) ^ (b * 0xDEADCAFE) ^ ((a + ~b) * 23333 + (a + b) * 33333);
+}
+
+uint32_t inode_chk2(uint32_t a, uint32_t b) {
+  return 0; // secret!
+}
+
 inode_manager::inode_manager() {
   bm = new block_manager();
   root_id = alloc_inode(extent_protocol::T_DIR);
@@ -213,9 +221,20 @@ uint32_t inode_manager::alloc_inum(uint32_t block_id) {
 }
 
 uint32_t inode_manager::addr_inum(uint32_t inum) {
-  // TODO: is inum valid?
-
   return inum + 8;
+}
+
+bool inode_manager::chk_inum(uint32_t inum) {
+  diskcache<struct inode> ni(bm, inum + 8, true, false);
+
+  if (ni->chk1 != inode_chk1(inum, ni->rtag)) {
+    return false;
+  }
+  if (ni->chk2 != inode_chk2(inum, ni->rtag)) {
+    return false;
+  }
+
+  return true;
 }
 
 void inode_manager::free_inum(uint32_t inum) {
@@ -230,6 +249,9 @@ uint32_t inode_manager::alloc_inode(uint32_t type) {
 
   ni->njnode = 0;
   ni->nknode = 0;
+  ni->rtag = rand() ^ (rand() << 16);
+  ni->chk1 = inode_chk1(inum, ni->rtag);
+  ni->chk2 = inode_chk2(inum, ni->rtag);
 
   ni->attr.type = type;
   ni->attr.atime = time(0);
@@ -241,7 +263,9 @@ uint32_t inode_manager::alloc_inode(uint32_t type) {
 }
 
 void inode_manager::free_inode(uint32_t inum) {
-  // TODO: all arguments should be checked!!!
+  if (!chk_inum(inum)) {
+    return;
+  }
 
   bm->free_block(addr_inum(inum));
   free_inum(inum);
@@ -251,6 +275,10 @@ void inode_manager::free_inode(uint32_t inum) {
 /* Get all the data of a file by inum. 
  * Return alloced data, should be freed by caller. */
 void inode_manager::read_file(uint32_t inum, char **buf_out, int *size) {
+  if (!chk_inum(inum)) {
+    return;
+  }
+
   diskcache<struct inode> ni(bm, addr_inum(inum), true, true);
 
   ni->attr.atime = time(0);
@@ -282,6 +310,10 @@ void inode_manager::read_file(uint32_t inum, char **buf_out, int *size) {
 /* alloc/free blocks if needed */
 void inode_manager::write_file(uint32_t inum, const char *buf, int size) {
   if (!buf) {
+    return;
+  }
+
+  if (!chk_inum(inum)) {
     return;
   }
 
@@ -350,13 +382,21 @@ void inode_manager::write_file(uint32_t inum, const char *buf, int size) {
 }
 
 void inode_manager::getattr(uint32_t inum, extent_protocol::attr &a) {
+  if (!chk_inum(inum)) {
+    return;
+  }
+
   diskcache<struct inode> ni(bm, addr_inum(inum), true, false);
 
   a = ni->attr;
 }
 
 void inode_manager::remove_file(uint32_t inum) {
-  diskcache<struct inode> ni(bm, addr_inum(inum), true, false);
+  if (!chk_inum(inum)) {
+    return;
+  }
+
+  diskcache<struct inode> ni(bm, addr_inum(inum), true, true);
 
   uint32_t j = 0;
   uint32_t k = 0;
@@ -371,4 +411,10 @@ void inode_manager::remove_file(uint32_t inum) {
   }
 
   free_inode(inum);
+
+  ni->njnode = 0;
+  ni->nknode = 0;
+  ni->rtag = 0;
+  ni->chk1 = 0;
+  ni->chk2 = 0;
 }
