@@ -26,6 +26,11 @@ class yfs_client {
     unsigned long mtime;
     unsigned long ctime;
   };
+  struct direntraw {
+    yfs_client::inum inum;
+    int name_length;
+    int name_hash;
+  };
   struct dirent {
     std::string name;
     yfs_client::inum inum;
@@ -39,8 +44,9 @@ class yfs_client {
   yfs_client();
   yfs_client(std::string, std::string);
 
-  bool isfile(inum);
   bool isdir(inum);
+  bool isfile(inum);
+  bool issymlink(inum);
 
   int getfile(inum, fileinfo &);
   int getdir(inum, dirinfo &);
@@ -51,10 +57,9 @@ class yfs_client {
   int readdir(inum, std::list<dirent> &);
   int write(inum, size_t, off_t, const char *, size_t &);
   int read(inum, size_t, off_t, std::string &);
-  int unlink(inum,const char *);
-  int mkdir(inum , const char *, mode_t , inum &);
-  
-  /** you may need to add symbolic link related methods here.*/
+  // int readlink
+  int unlink(inum, const char *);
+  int mkdir(inum, const char *, mode_t , inum &);
 };
 
 #endif 
