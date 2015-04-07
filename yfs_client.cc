@@ -12,7 +12,7 @@
 #define EXT_RPC(xx) do { \
     if ((xx) != extent_protocol::OK) { \
         printf("EXT_RPC Error: %s:%d \n", __FILE__, __LINE__); \
-        return IOERR; \
+        return RPCERR; \
     } \
 } while (0)
 
@@ -304,41 +304,54 @@ yfs_client::write(inum ino, size_t size, off_t off, const char *data,
     }
 
     // notice: naive implementation
-    new_file_data.append(file_data.substr(0, off));
+    new_file_data = file_data.substr(0, off);
     new_file_data.append(data, size);
-
-    if (off + size != file_data.size()) {
-        new_file_data.append(file_data.substr(
-            off + size,
-            file_data.size() - off - size
-        ));
-    }
+    new_file_data.append(file_data.substr(
+        off + size,
+        file_data.size() - off - size
+    ));
 
     EXT_RPC(ec->put(ino, new_file_data));
-
-    std::cout << 'a' << file_data.size() << 'a' << std::endl;
-    std::cout << 'a' << size << 'a' << std::endl;
-    std::cout << 'a' << off << 'a' << std::endl;
-    std::cout << 'a' << new_file_data.size() << 'a' << std::endl;
-    std::cout << "bbb" << new_file_data << std::endl;
-
-    std::string file_data1;
-    EXT_RPC(ec->get(ino, file_data1));
-    std::cout << "ccc" << file_data1 << std::endl;
 
     return OK;
 }
 
-int yfs_client::unlink(inum parent,const char *name)
+int yfs_client::unlink(inum parent, const char *name)
 {
-    int r = OK;
+    std::string dir_info;
+    EXT_RPC(ec->get(parent, dir_info));
 
-    /*
-     * your lab2 code goes here.
-     * note: you should remove the file using ec->remove,
-     * and update the parent directory content.
-     */
+    std::string file_name(name);
 
-    return r;
+    int name_length = file_name.size();
+    int name_hash = strhash(file_name);
+
+    size_t i = 0;
+    while (i < dir_info.size()) {
+        std::string ent = dir_info.substr(i, sizeof(struct direntraw));
+        struct direntraw dr = *((struct direntraw *) ent.data());
+        i += sizeof(struct direntraw);
+
+        if (name_length == dr.name_length && name_hash == dr.name_hash) {
+            std::string ent_name = dir_info.substr(i, dr.name_length);
+            if (ent_name == file_name) {
+                // notice: naive implementation
+                std::string new_dir_info;
+
+                new_dir_info = dir_info.substr(0, i - sizeof(struct direntraw));
+                new_dir_info.append(dir_info.substr(
+                    i + dr.name_length,
+                    dir_info.size() - i - dr.name_length
+                ));
+
+                EXT_RPC(ec->put(parent, dir_info));
+                return OK;
+            }
+        }
+        i += dr.name_length;
+    }
+
+    EXT_RPC(ec->put(parent, dir_info));
+    return NOENT;
 }
 
