@@ -129,7 +129,7 @@ yfs_client::getdir(inum inum, dirinfo &din)
 
     din.atime = a.atime;
     din.mtime = a.mtime;
-    din.ctime = a.ctime;
+    din.ctime = a.mtime;
 
     return OK;
 }
@@ -344,7 +344,8 @@ int yfs_client::unlink(inum parent, const char *name)
                     dir_info.size() - i - dr.name_length
                 ));
 
-                EXT_RPC(ec->put(parent, dir_info));
+                EXT_RPC(ec->remove(dr.inum));
+                EXT_RPC(ec->put(parent, new_dir_info));
                 return OK;
             }
         }
