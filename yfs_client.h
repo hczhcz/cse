@@ -26,6 +26,11 @@ class yfs_client {
     unsigned long mtime;
     unsigned long ctime;
   };
+  struct linkinfo {
+    unsigned long atime;
+    unsigned long mtime;
+    unsigned long ctime;
+  };
   struct direntraw {
     yfs_client::inum inum;
     int name_length;
@@ -42,10 +47,11 @@ class yfs_client {
 
   bool isdir(inum);
   bool isfile(inum);
-  bool issymlink(inum);
+  bool islink(inum);
 
   int getfile(inum, fileinfo &);
   int getdir(inum, dirinfo &);
+  int getlink(inum, linkinfo &);
 
   int setattr(inum, size_t);
   int lookup(inum, const char *, bool &, inum &);

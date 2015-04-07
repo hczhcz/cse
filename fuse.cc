@@ -46,7 +46,7 @@ getattr(yfs_client::inum inum, struct stat &st)
 
     st.st_ino = inum;
     printf("getattr %016llx %d\n", inum, yfs->isfile(inum));
-    if(yfs->isfile(inum)){
+    if (yfs->isfile(inum)) {
         yfs_client::fileinfo info;
         ret = yfs->getfile(inum, info);
         if(ret != yfs_client::OK)
@@ -58,6 +58,17 @@ getattr(yfs_client::inum inum, struct stat &st)
         st.st_ctime = info.ctime;
         st.st_size = info.size;
         printf("   getattr -> %llu\n", info.size);
+    } else if (yfs->islink(inum)) {
+        yfs_client::linkinfo info;
+        ret = yfs->getlink(inum, info);
+        if(ret != yfs_client::OK)
+            return ret;
+        st.st_mode = S_IFLNK | 0777;
+        st.st_nlink = 1;
+        st.st_atime = info.atime;
+        st.st_mtime = info.mtime;
+        st.st_ctime = info.ctime;
+        printf("   getattr -> %lu %lu %lu\n", info.atime, info.mtime, info.ctime);
     } else {
         yfs_client::dirinfo info;
         ret = yfs->getdir(inum, info);
@@ -122,7 +133,7 @@ fuseserver_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
         int to_set, struct fuse_file_info *fi)
 {
     printf("fuseserver_setattr 0x%x\n", to_set);
-    if (FUSE_SET_ATTR_SIZE & to_set) {
+    // if (FUSE_SET_ATTR_SIZE & to_set) {
         printf("   fuseserver_setattr set size to %zu\n", attr->st_size);
         struct stat st;
 
@@ -138,9 +149,9 @@ fuseserver_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
         fuse_reply_err(req, ENOSYS);
 #endif
 
-    } else {
-        fuse_reply_err(req, ENOSYS);
-    }
+    // } else {
+    //     fuse_reply_err(req, ENOSYS);
+    // }
 }
 
 //

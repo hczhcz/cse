@@ -71,17 +71,17 @@ yfs_client::isfile(inum inum)
 }
 
 bool
-yfs_client::issymlink(inum inum)
+yfs_client::islink(inum inum)
 {
     extent_protocol::attr a;
     EXT_RPC(ec->getattr(inum, a));
 
     if (a.type == extent_protocol::T_SYMLINK) {
-        printf("issymlink: %lld is a symlink\n", inum);
+        printf("islink: %lld is a symlink\n", inum);
         return true;
     } 
 
-    printf("issymlink: %lld is not a symlink\n", inum);
+    printf("islink: %lld is not a symlink\n", inum);
     return false;
 }
 
@@ -113,6 +113,21 @@ yfs_client::getdir(inum inum, dirinfo &din)
     din.atime = a.atime;
     din.mtime = a.mtime;
     din.ctime = a.mtime;
+
+    return OK;
+}
+
+int
+yfs_client::getlink(inum inum, linkinfo &lin)
+{
+    printf("getlink %016llx\n", inum);
+
+    extent_protocol::attr a;
+    EXT_RPC(ec->getattr(inum, a));
+
+    lin.atime = a.atime;
+    lin.mtime = a.mtime;
+    lin.ctime = a.mtime;
 
     return OK;
 }
