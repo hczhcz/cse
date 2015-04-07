@@ -4,19 +4,27 @@
 #define inode_h
 
 #include <stdint.h>
-#include "extent_protocol.h" // TODO: delete it
+#include "extent_protocol.h"
 
-#define DISK_SIZE  1024*1024*16
-#define BLOCK_SIZE 512
-#define BLOCK_NUM  (DISK_SIZE/BLOCK_SIZE)
+#define DISK_SIZE         1024*1024*16
+#define BLOCK_SIZE        512
 
-typedef uint32_t blockid_t;
+// if BLOCK_NUM != BLOCK_SIZE * 8 * C, the non-existent blocks should be "locked"
+#define BLOCK_NUM         (DISK_SIZE / BLOCK_SIZE)
+#define MAP_NUM           (BLOCK_NUM / BLOCK_SIZE / 8)
+
+#define U32MAP_TOTAL      (BLOCK_SIZE / 4)
+#define U32MAP_GLOBAL(i)  ((i) / 32 / U32MAP_TOTAL)
+#define U32MAP_LOCAL(i)   ((i) / 32 % U32MAP_TOTAL)
+#define U32MAP_POS(i)     ((i) % 32)
+#define U32MAP(g, l, p)   ((g) * U32MAP_TOTAL * 32 + (l) * 32 + (p))
+#define U32FILL           0xFFFFFFFF
 
 // disk layer -----------------------------------------
 
 class disk {
  private:
-  unsigned char blocks[BLOCK_NUM][BLOCK_SIZE];
+  char blocks[BLOCK_NUM][BLOCK_SIZE];
 
  public:
   disk();
@@ -24,63 +32,108 @@ class disk {
   void write_block(uint32_t id, const char *buf);
 };
 
+class block_manager;
+
+template <class T>
+class diskcache {
+ private:
+  disk *d;
+  uint32_t id;
+  bool do_write;
+
+  char buf[BLOCK_SIZE];
+
+ public:
+  friend class block_manager;
+
+  diskcache(block_manager *to_bm, uint32_t to_id, bool read, bool write);
+  diskcache(disk *to_d, uint32_t to_id, bool read, bool write);
+  ~diskcache();
+
+  inline T *operator->() {
+    return ((T *) &buf);
+  }
+};
+
 // block layer -----------------------------------------
 
-typedef struct superblock {
+struct superblock {
   uint32_t size;
   uint32_t nblocks;
-  uint32_t ninodes;
-} superblock_t;
+  uint32_t nmaps;
+  uint32_t metamap_g;
+  uint32_t metamap_l_l;
+  uint32_t metamap[MAP_NUM][U32MAP_TOTAL / 32];
+};
+
+struct mapblock {
+  uint32_t map[U32MAP_TOTAL];
+};
 
 class block_manager {
  private:
   disk *d;
   std::map <uint32_t, int> using_blocks;
+
+  void lock_block(uint32_t id);
+  void unlock_block(uint32_t id);
+  uint32_t pick_free_block();
+
  public:
   block_manager();
-  struct superblock sb;
 
-  uint32_t alloc_block();
+  uint32_t alloc_block(bool check = true);
   void free_block(uint32_t id);
   void read_block(uint32_t id, char *buf);
   void write_block(uint32_t id, const char *buf);
+  template <class T>
+  void direct_access(diskcache<T> *dc);
 };
 
 // inode layer -----------------------------------------
 
-#define INODE_NUM  1024
+#define NMAP_I (U32MAP_TOTAL / 4)
+#define NMAP_J (U32MAP_TOTAL / 2)
+#define NDATA_MIXED (BLOCK_SIZE / 2)
+#define NDATA_FULL BLOCK_SIZE
 
-// Inodes per block.
-#define IPB           1
-//(BLOCK_SIZE / sizeof(struct inode))
+// #define NMAP_TRUNC(k) (((k) >= NMAP_J) ? NMAP_J : (k))
+// #define NMAP_TRUNC_2(k, j) NMAP_TRUNC((k) - (j) * NMAP_J)
+#define NDATA_MIXED_TRUNC(x) (((x) >= NDATA_MIXED) ? NDATA_MIXED : (x))
+#define NDATA_FULL_TRUNC(x) (((x) >= NDATA_FULL) ? NDATA_FULL : (x))
 
-// Block containing inode i
-#define IBLOCK(i, nblocks)     ((nblocks)/BPB + (i)/IPB + 3)
+struct inode {
+  uint32_t map[NMAP_I];
 
-// Bitmap bits per block
-#define BPB           (BLOCK_SIZE*8)
+  uint32_t njnode;
+  uint32_t nknode;
+  uint32_t rtag;
+  uint32_t chk1;
+  uint32_t chk2;
+  extent_protocol::attr attr;
 
-// Block containing bit for block b
-#define BBLOCK(b) ((b)/BPB + 2)
+  char data[NDATA_MIXED];
+};
 
-#define NDIRECT 100
-#define NINDIRECT (BLOCK_SIZE / sizeof(uint))
-#define MAXFILE (NDIRECT + NINDIRECT)
+struct jnode {
+  uint32_t map[NMAP_J];
+  char data[NDATA_MIXED];
+};
 
-typedef struct inode {
-  short type;
-  unsigned int size;
-  unsigned int atime;
-  unsigned int mtime;
-  unsigned int ctime;
-  blockid_t blocks[NDIRECT+1];   // Data block addresses
-} inode_t;
+struct knode {
+  char data[NDATA_FULL];
+};
 
 class inode_manager {
  private:
   block_manager *bm;
-  struct inode* get_inode(uint32_t inum);
-  void put_inode(uint32_t inum, struct inode *ino);
+
+  uint32_t root_id;
+
+  uint32_t alloc_inum(uint32_t block_id);
+  uint32_t addr_inum(uint32_t inum);
+  bool chk_inum(uint32_t inum);
+  void free_inum(uint32_t inum);
 
  public:
   inode_manager();
@@ -93,4 +146,3 @@ class inode_manager {
 };
 
 #endif
-
