@@ -135,7 +135,7 @@ fuseserver_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
         getattr(ino, st);
         fuse_reply_attr(req, &st, 0);
 #else
-    fuse_reply_err(req, ENOSYS);
+        fuse_reply_err(req, ENOSYS);
 #endif
 
     } else {
@@ -240,7 +240,7 @@ fuseserver_createhelper(fuse_ino_t parent, const char *name,
     if ( type == extent_protocol::T_FILE )
 		ret = yfs->create(parent, name, mode, inum);
 	else 
-		ret = yfs->mkdir(parent,name,mode,inum);
+		ret = yfs->mkdir(parent, name, mode, inum);
     if (ret != yfs_client::OK)
         return ret;
     e->ino = inum;
@@ -457,6 +457,46 @@ fuseserver_statfs(fuse_req_t req)
     fuse_reply_statfs(req, &buf);
 }
 
+// symlink
+void
+fuseserver_symlink(fuse_req_t req, const char *link, fuse_ino_t parent, const char *name)
+{
+    int r;
+
+    struct fuse_entry_param e;
+    e.attr_timeout = 0.0;
+    e.entry_timeout = 0.0;
+    e.generation = 0;
+
+    yfs_client::inum inum;
+    if ((r = yfs->mklink(parent, name, link, inum)) == yfs_client::OK) {
+        e.ino = inum;
+
+        getattr(inum, e.attr);
+        fuse_reply_entry(req, &e);
+    } else {
+        if (r == yfs_client::EXIST){
+            fuse_reply_err(req, EEXIST);
+        } else {
+            fuse_reply_err(req, ENOENT);
+        }
+    }
+}
+
+// readlink
+void
+fuseserver_readlink(fuse_req_t req, fuse_ino_t ino)
+{
+    int r;
+    std::string link;
+
+    if ((r = yfs->readlink(ino, link)) == yfs_client::OK) {
+        fuse_reply_readlink(req, link.data());
+    } else {
+        fuse_reply_err(req, ENOENT);
+    }
+}
+
 struct fuse_lowlevel_ops fuseserver_oper;
 
 int
@@ -499,6 +539,8 @@ main(int argc, char *argv[])
     fuseserver_oper.setattr    = fuseserver_setattr;
     fuseserver_oper.unlink     = fuseserver_unlink;
     fuseserver_oper.mkdir      = fuseserver_mkdir;
+    fuseserver_oper.symlink    = fuseserver_symlink;
+    fuseserver_oper.readlink   = fuseserver_readlink;
     /** Your code here for Lab.
      * you may want to add
      * routines here to implement symbolic link,

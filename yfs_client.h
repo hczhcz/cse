@@ -36,10 +36,6 @@ class yfs_client {
     yfs_client::inum inum;
   };
 
- private:
-  static std::string filename(inum);
-  static inum n2i(std::string);
-
  public:
   yfs_client();
   yfs_client(std::string, std::string);
@@ -57,9 +53,10 @@ class yfs_client {
   int readdir(inum, std::list<dirent> &);
   int write(inum, size_t, off_t, const char *, size_t &);
   int read(inum, size_t, off_t, std::string &);
-  // int readlink
   int unlink(inum, const char *);
   int mkdir(inum, const char *, mode_t , inum &);
+  int mklink(inum, const char *, const char *, inum &); // symlink
+  int readlink(inum, std::string &); // symlink
 };
 
 #endif 

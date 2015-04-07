@@ -40,23 +40,6 @@ yfs_client::yfs_client(std::string extent_dst, std::string lock_dst)
     };
 }
 
-yfs_client::inum
-yfs_client::n2i(std::string n)
-{
-    std::istringstream ist(n);
-    unsigned long long finum;
-    ist >> finum;
-    return finum;
-}
-
-std::string
-yfs_client::filename(inum inum)
-{
-    std::ostringstream ost;
-    ost << inum;
-    return ost.str();
-}
-
 bool
 yfs_client::isdir(inum inum)
 {
@@ -356,3 +339,48 @@ int yfs_client::unlink(inum parent, const char *name)
     return NOENT;
 }
 
+int yfs_client::mklink(inum parent, const char *name, const char *link, inum &ino_out) {
+    bool exist = false;
+
+    // lookup
+
+    int st = lookup(parent, name, exist, ino_out);
+    if (st != OK) {
+        return st;
+    }
+    if (exist) {
+        return EXIST;
+    }
+
+    // create
+
+    EXT_RPC(ec->create(extent_protocol::T_SYMLINK, ino_out));
+    std::cout << "kkk[" << link << "]k";
+    EXT_RPC(ec->put(ino_out, link));
+
+    // modify parent
+
+    std::string dir_info;
+    EXT_RPC(ec->get(parent, dir_info));
+
+    std::string file_name(name);
+
+    struct direntraw dr;
+    dr.inum = ino_out;
+    dr.name_length = file_name.size();
+    dr.name_hash = strhash(file_name);
+
+    dir_info.append((char *) &dr, sizeof(struct direntraw));
+    dir_info.append(file_name);
+
+    EXT_RPC(ec->put(parent, dir_info));
+
+    return OK;
+}
+
+int yfs_client::readlink(inum ino, std::string &data) {
+    EXT_RPC(ec->get(ino, data));
+    std::cout << "jjj[" << data << "]j";
+
+    return OK;
+}
