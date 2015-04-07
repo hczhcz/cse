@@ -299,7 +299,7 @@ void inode_manager::read_file(uint32_t inum, char **buf_out, int *size) {
     memcpy(begin, nj->data, NDATA_MIXED_TRUNC(end - begin));
     begin += NDATA_MIXED;
 
-    for (; k < ni->nknode && k < (ni->njnode + 1) * NMAP_J; ++k) {
+    for (; k < ni->nknode && k < (j + 1) * NMAP_J; ++k) {
       diskcache<struct knode> nk(bm, nj->map[k % NMAP_J], true, false);
 
       memcpy(begin, nk->data, NDATA_FULL_TRUNC(end - begin));
@@ -350,7 +350,7 @@ void inode_manager::write_file(uint32_t inum, const char *buf, int size) {
       begin += NDATA_MIXED;
 
       for (; k < ni->nknode || begin < end; ++k) {
-        if (k == (ni->njnode + 1) * NMAP_J) {
+        if (k == (j + 1) * NMAP_J) {
           break;
         }
 
@@ -360,7 +360,7 @@ void inode_manager::write_file(uint32_t inum, const char *buf, int size) {
             ++(ni->nknode);
           }
 
-          diskcache<struct knode> nk(bm, nj->map[k % NMAP_J], true, true);
+          diskcache<struct knode> nk(bm, nj->map[k % NMAP_J], false, true);
 
           memcpy(nk->data, begin, NDATA_FULL_TRUNC(end - begin));
           begin += NDATA_FULL;
