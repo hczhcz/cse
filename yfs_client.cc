@@ -370,7 +370,6 @@ int yfs_client::mklink(inum parent, const char *name, const char *link, inum &in
     // create
 
     EXT_RPC(ec->create(extent_protocol::T_SYMLINK, ino_out));
-    std::cout << "kkk[" << link << "]k";
     EXT_RPC(ec->put(ino_out, link));
 
     // modify parent
@@ -395,7 +394,6 @@ int yfs_client::mklink(inum parent, const char *name, const char *link, inum &in
 
 int yfs_client::readlink(inum ino, std::string &data) {
     EXT_RPC(ec->get(ino, data));
-    std::cout << "jjj[" << data << "]j";
 
     return OK;
 }
