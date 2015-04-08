@@ -42,8 +42,7 @@ class yfs_client {
   };
 
  public:
-  yfs_client();
-  yfs_client(std::string, std::string);
+  yfs_client(std::string);
 
   bool isdir(inum);
   bool isfile(inum);

@@ -26,15 +26,9 @@ int strhash(std::string s) {
     return v;
 }
 
-yfs_client::yfs_client()
+yfs_client::yfs_client(std::string extent_dst)
 {
-    ec = new extent_client();
-
-}
-
-yfs_client::yfs_client(std::string extent_dst, std::string lock_dst)
-{
-    ec = new extent_client();
+    ec = new extent_client(extent_dst);
     if (ec->put(1, "") != extent_protocol::OK) {
         printf("EXT_RPC Error: %s:%d \n", __FILE__, __LINE__);
     };
