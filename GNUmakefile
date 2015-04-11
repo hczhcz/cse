@@ -138,5 +138,5 @@ handin_file=lab$(LAB).tgz
 labdir=$(shell basename $(PWD))
 handin: 
 	@bash -c "cd ../; tar -X <(tr ' ' '\n' < <(echo '$(handin_ignore)')) -czvf $(handin_file) $(labdir); mv $(handin_file) $(labdir); cd $(labdir)"
-	@echo Please modify lab4.tgz to lab4_[your student id].tgz and upload it to ftp://xiaodi:public@public.sjtu.edu.cn/upload/lab4	
+	@echo Please modify lab4.tgz to lab4_[your student id].tgz and upload it to ftp://kiki_yu:public@public.sjtu.edu.cn/upload/lab4	
 	@echo Thanks!
