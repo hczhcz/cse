@@ -1,5 +1,6 @@
 // yfs client.  implements FS operations using extent and lock server
 #include "yfs_client.h"
+#include "lock_client.h"
 #include "extent_client.h"
 #include <sstream>
 #include <iostream>
@@ -26,9 +27,10 @@ int strhash(std::string s) {
     return v;
 }
 
-yfs_client::yfs_client(std::string extent_dst)
+yfs_client::yfs_client(std::string extent_dst, std::string lock_dst)
 {
     ec = new extent_client(extent_dst);
+    lc = new lock_client(lock_dst);
     if (ec->put(1, "") != extent_protocol::OK) {
         printf("EXT_RPC Error: %s:%d \n", __FILE__, __LINE__);
     };
