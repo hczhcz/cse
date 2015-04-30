@@ -20,5 +20,20 @@ class lock_client {
   virtual lock_protocol::status stat(lock_protocol::lockid_t);
 };
 
+class lock_guard {
+ private:
+  lock_client *lc;
+  lock_protocol::lockid_t lid;
+ public:
+  inline lock_guard(
+    lock_client *_lc, lock_protocol::lockid_t _lid
+  ): lc(_lc), lid(_lid) {
+    lc->acquire(lid);
+  }
+  inline ~lock_guard() {
+    lc->release(lid);
+  }
+};
+
 
 #endif 
