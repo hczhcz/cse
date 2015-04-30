@@ -5,6 +5,7 @@
 #define lock_server_h
 
 #include <string>
+#include <map>
 #include "lock_protocol.h"
 #include "lock_client.h"
 #include "rpc.h"
@@ -13,6 +14,7 @@ class lock_server {
 
  protected:
   int nacquire;
+  std::map<lock_protocol::lockid_t, int> lock;
 
  public:
   lock_server();
