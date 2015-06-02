@@ -67,8 +67,7 @@ int strhash(std::string s) {
     return v;
 }
 
-yfs_client::yfs_client(std::string extent_dst, std::string lock_dst)
-{
+yfs_client::yfs_client(std::string extent_dst, std::string lock_dst) {
     ec = new extent_client(extent_dst);
     lc = new lock_client(lock_dst);
 
@@ -80,24 +79,7 @@ yfs_client::yfs_client(std::string extent_dst, std::string lock_dst)
     };
 }
 
-bool
-yfs_client::isdir(inum inum)
-{
-    extent_protocol::attr a;
-    EXT_RPC_READ(ec->getattr(inum, a), inum);
-
-    if (a.type == extent_protocol::T_DIR) {
-        printf("isdir: %lld is a dir\n", inum);
-        return true;
-    } 
-
-    printf("isdir: %lld is not a dir\n", inum);
-    return false;
-}
-
-bool
-yfs_client::isfile(inum inum)
-{
+bool yfs_client::isfile(inum inum) {
     extent_protocol::attr a;
     EXT_RPC_READ(ec->getattr(inum, a), inum);
 
@@ -110,9 +92,20 @@ yfs_client::isfile(inum inum)
     return false;
 }
 
-bool
-yfs_client::islink(inum inum)
-{
+bool yfs_client::isdir(inum inum) {
+    extent_protocol::attr a;
+    EXT_RPC_READ(ec->getattr(inum, a), inum);
+
+    if (a.type == extent_protocol::T_DIR) {
+        printf("isdir: %lld is a dir\n", inum);
+        return true;
+    } 
+
+    printf("isdir: %lld is not a dir\n", inum);
+    return false;
+}
+
+bool yfs_client::islink(inum inum) {
     extent_protocol::attr a;
     EXT_RPC_READ(ec->getattr(inum, a), inum);
 
@@ -125,9 +118,7 @@ yfs_client::islink(inum inum)
     return false;
 }
 
-int
-yfs_client::getfile(inum inum, fileinfo &fin)
-{
+int yfs_client::getfile(inum inum, fileinfo &fin) {
     printf("getfile %016llx\n", inum);
 
     extent_protocol::attr a;
@@ -142,9 +133,7 @@ yfs_client::getfile(inum inum, fileinfo &fin)
     return OK;
 }
 
-int
-yfs_client::getdir(inum inum, dirinfo &din)
-{
+int yfs_client::getdir(inum inum, dirinfo &din) {
     printf("getdir %016llx\n", inum);
 
     extent_protocol::attr a;
@@ -157,9 +146,7 @@ yfs_client::getdir(inum inum, dirinfo &din)
     return OK;
 }
 
-int
-yfs_client::getlink(inum inum, linkinfo &lin)
-{
+int yfs_client::getlink(inum inum, linkinfo &lin) {
     printf("getlink %016llx\n", inum);
 
     extent_protocol::attr a;
@@ -172,23 +159,37 @@ yfs_client::getlink(inum inum, linkinfo &lin)
     return OK;
 }
 
-// Only support set size of attr
-int
-yfs_client::setattr(inum ino, size_t size)
-{
-    std::string file_data;
-    EXT_RPC_RW_BEGIN(ec->get(ino, file_data), ino);
+int yfs_client::lookup(inum parent, const char *name, bool &found, inum &ino_out) {
+    std::string dir_info;
+    EXT_RPC_READ(ec->get(parent, dir_info), parent);
 
-        file_data.resize(size);
+    std::string file_name(name);
 
-    EXT_RPC_RW_END(ec->put(ino, file_data));
+    int name_length = file_name.size();
+    int name_hash = strhash(file_name);
 
+    size_t i = 0;
+    while (i < dir_info.size()) {
+        std::string ent = dir_info.substr(i, sizeof(struct direntraw));
+        struct direntraw dr = *((struct direntraw *) ent.data());
+        i += sizeof(struct direntraw);
+
+        if (name_length == dr.name_length && name_hash == dr.name_hash) {
+            std::string ent_name = dir_info.substr(i, dr.name_length);
+            if (ent_name == file_name) {
+                ino_out = dr.inum;
+                found = true;
+                return OK;
+            }
+        }
+        i += dr.name_length;
+    }
+
+    found = false;
     return OK;
 }
 
-int
-yfs_client::create(inum parent, const char *name, mode_t mode, inum &ino_out)
-{
+int yfs_client::create(inum parent, const char *name, mode_t mode, inum &ino_out) {
     bool exist = false;
 
     // lookup
@@ -225,9 +226,7 @@ yfs_client::create(inum parent, const char *name, mode_t mode, inum &ino_out)
     return OK;
 }
 
-int
-yfs_client::mkdir(inum parent, const char *name, mode_t mode, inum &ino_out)
-{
+int yfs_client::mkdir(inum parent, const char *name, mode_t mode, inum &ino_out) {
     bool exist = false;
 
     // lookup
@@ -262,136 +261,6 @@ yfs_client::mkdir(inum parent, const char *name, mode_t mode, inum &ino_out)
     EXT_RPC_RW_END(ec->put(parent, dir_info));
 
     return OK;
-}
-
-int
-yfs_client::lookup(inum parent, const char *name, bool &found, inum &ino_out)
-{
-    std::string dir_info;
-    EXT_RPC_READ(ec->get(parent, dir_info), parent);
-
-    std::string file_name(name);
-
-    int name_length = file_name.size();
-    int name_hash = strhash(file_name);
-
-    size_t i = 0;
-    while (i < dir_info.size()) {
-        std::string ent = dir_info.substr(i, sizeof(struct direntraw));
-        struct direntraw dr = *((struct direntraw *) ent.data());
-        i += sizeof(struct direntraw);
-
-        if (name_length == dr.name_length && name_hash == dr.name_hash) {
-            std::string ent_name = dir_info.substr(i, dr.name_length);
-            if (ent_name == file_name) {
-                ino_out = dr.inum;
-                found = true;
-                return OK;
-            }
-        }
-        i += dr.name_length;
-    }
-
-    found = false;
-    return OK;
-}
-
-int
-yfs_client::readdir(inum dir, std::list<dirent> &list)
-{
-    std::string dir_info;
-    EXT_RPC_READ(ec->get(dir, dir_info), dir);
-
-    size_t i = 0;
-    while (i < dir_info.size()) {
-        std::string ent = dir_info.substr(i, sizeof(struct direntraw));
-        struct direntraw dr = *((struct direntraw *) ent.data());
-        i += sizeof(struct direntraw);
-
-        struct dirent de;
-        de.inum = dr.inum;
-        de.name = dir_info.substr(i, dr.name_length);
-        list.push_back(de);
-        i += dr.name_length;
-    }
-
-    return OK;
-}
-
-int
-yfs_client::read(inum ino, size_t size, off_t off, std::string &data)
-{
-    std::string file_data;
-    EXT_RPC_READ(ec->get(ino, file_data), ino);
-
-    data = file_data.substr(off, size);
-
-    return OK;
-}
-
-int
-yfs_client::write(inum ino, size_t size, off_t off, const char *data,
-        size_t &bytes_written)
-{
-    std::string file_data;
-    std::string new_file_data;
-    EXT_RPC_RW_BEGIN(ec->get(ino, file_data), ino);
-
-        if (off + size > file_data.size()) {
-            file_data.resize(off + size, 0);
-        }
-
-        // notice: naive implementation
-        new_file_data = file_data.substr(0, off);
-        new_file_data.append(data, size);
-        new_file_data.append(file_data.substr(
-            off + size,
-            file_data.size() - off - size
-        ));
-
-    EXT_RPC_RW_END(ec->put(ino, new_file_data));
-
-    return OK;
-}
-
-int yfs_client::unlink(inum parent, const char *name)
-{
-    std::string dir_info;
-    EXT_RPC_RW_BEGIN(ec->get(parent, dir_info), parent);
-
-        std::string file_name(name);
-
-        int name_length = file_name.size();
-        int name_hash = strhash(file_name);
-
-        size_t i = 0;
-        while (i < dir_info.size()) {
-            std::string ent = dir_info.substr(i, sizeof(struct direntraw));
-            struct direntraw dr = *((struct direntraw *) ent.data());
-            i += sizeof(struct direntraw);
-
-            if (name_length == dr.name_length && name_hash == dr.name_hash) {
-                std::string ent_name = dir_info.substr(i, dr.name_length);
-                if (ent_name == file_name) {
-                    // notice: naive implementation
-                    std::string new_dir_info;
-
-                    new_dir_info = dir_info.substr(0, i - sizeof(struct direntraw));
-                    new_dir_info.append(dir_info.substr(
-                        i + dr.name_length,
-                        dir_info.size() - i - dr.name_length
-                    ));
-
-                    EXT_RPC_WRITE(ec->remove(dr.inum));
-                    EXT_RPC_WRITE(ec->put(parent, new_dir_info));
-                    return OK;
-                }
-            }
-            i += dr.name_length;
-        }
-
-    EXT_RPC_RW_END(ec->put(parent, dir_info));
-    return NOENT;
 }
 
 int yfs_client::mklink(inum parent, const char *name, const char *link, inum &ino_out) {
@@ -432,8 +301,111 @@ int yfs_client::mklink(inum parent, const char *name, const char *link, inum &in
     return OK;
 }
 
+int yfs_client::read(inum ino, size_t size, off_t off, std::string &data) {
+    std::string file_data;
+    EXT_RPC_READ(ec->get(ino, file_data), ino);
+
+    data = file_data.substr(off, size);
+
+    return OK;
+}
+
+int yfs_client::readdir(inum dir, std::list<dirent> &list) {
+    std::string dir_info;
+    EXT_RPC_READ(ec->get(dir, dir_info), dir);
+
+    size_t i = 0;
+    while (i < dir_info.size()) {
+        std::string ent = dir_info.substr(i, sizeof(struct direntraw));
+        struct direntraw dr = *((struct direntraw *) ent.data());
+        i += sizeof(struct direntraw);
+
+        struct dirent de;
+        de.inum = dr.inum;
+        de.name = dir_info.substr(i, dr.name_length);
+        list.push_back(de);
+        i += dr.name_length;
+    }
+
+    return OK;
+}
+
 int yfs_client::readlink(inum ino, std::string &data) {
     EXT_RPC_READ(ec->get(ino, data), ino);
 
     return OK;
+}
+
+// Only support set size of attr
+int yfs_client::setattr(inum ino, size_t size) {
+    std::string file_data;
+    EXT_RPC_RW_BEGIN(ec->get(ino, file_data), ino);
+
+        file_data.resize(size);
+
+    EXT_RPC_RW_END(ec->put(ino, file_data));
+
+    return OK;
+}
+
+int yfs_client::write(inum ino, size_t size, off_t off, const char *data,
+        size_t &bytes_written) {
+    std::string file_data;
+    std::string new_file_data;
+    EXT_RPC_RW_BEGIN(ec->get(ino, file_data), ino);
+
+        if (off + size > file_data.size()) {
+            file_data.resize(off + size, 0);
+        }
+
+        // notice: naive implementation
+        new_file_data = file_data.substr(0, off);
+        new_file_data.append(data, size);
+        new_file_data.append(file_data.substr(
+            off + size,
+            file_data.size() - off - size
+        ));
+
+    EXT_RPC_RW_END(ec->put(ino, new_file_data));
+
+    return OK;
+}
+
+int yfs_client::unlink(inum parent, const char *name) {
+    std::string dir_info;
+    EXT_RPC_RW_BEGIN(ec->get(parent, dir_info), parent);
+
+        std::string file_name(name);
+
+        int name_length = file_name.size();
+        int name_hash = strhash(file_name);
+
+        size_t i = 0;
+        while (i < dir_info.size()) {
+            std::string ent = dir_info.substr(i, sizeof(struct direntraw));
+            struct direntraw dr = *((struct direntraw *) ent.data());
+            i += sizeof(struct direntraw);
+
+            if (name_length == dr.name_length && name_hash == dr.name_hash) {
+                std::string ent_name = dir_info.substr(i, dr.name_length);
+                if (ent_name == file_name) {
+                    // notice: naive implementation
+                    std::string new_dir_info;
+
+                    new_dir_info = dir_info.substr(0, i - sizeof(struct direntraw));
+                    new_dir_info.append(dir_info.substr(
+                        i + dr.name_length,
+                        dir_info.size() - i - dr.name_length
+                    ));
+
+                    EXT_RPC_WRITE(ec->remove(dr.inum));
+                    EXT_RPC_WRITE(ec->put(parent, new_dir_info));
+                    return OK;
+                }
+            }
+            i += dr.name_length;
+        }
+
+    EXT_RPC_RW_END(ec->put(parent, dir_info));
+    return NOENT;
 }

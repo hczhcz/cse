@@ -57,16 +57,19 @@ class yfs_client {
   int getdir(inum, dirinfo &);
   int getlink(inum, linkinfo &);
 
-  int setattr(inum, size_t);
   int lookup(inum, const char *, bool &, inum &);
+
   int create(inum, const char *, mode_t, inum &);
-  int readdir(inum, std::list<dirent> &);
-  int write(inum, size_t, off_t, const char *, size_t &);
-  int read(inum, size_t, off_t, std::string &);
-  int unlink(inum, const char *);
   int mkdir(inum, const char *, mode_t , inum &);
   int mklink(inum, const char *, const char *, inum &); // symlink
+
+  int read(inum, size_t, off_t, std::string &);
+  int readdir(inum, std::list<dirent> &);
   int readlink(inum, std::string &); // symlink
+
+  int setattr(inum, size_t);
+  int write(inum, size_t, off_t, const char *, size_t &);
+  int unlink(inum, const char *);
 };
 
 #endif 
