@@ -71,12 +71,12 @@ yfs_client::yfs_client(std::string extent_dst, std::string lock_dst) {
     ec = new extent_client(extent_dst);
     lc = new lock_client(lock_dst);
 
-    LOCK_DO(0);
-    LOCK_DO(1);
+    // LOCK_DO(0);
+    // LOCK_DO(1);
 
-    if (ec->put(1, "") != extent_protocol::OK) {
-        printf("EXT_RPC Error: %s:%d \n", __FILE__, __LINE__);
-    };
+    // if (ec->put(1, "") != extent_protocol::OK) {
+    //     printf("EXT_RPC Error: %s:%d \n", __FILE__, __LINE__);
+    // };
 }
 
 bool yfs_client::isfile(inum inum) {

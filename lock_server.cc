@@ -31,7 +31,7 @@ lock_server::acquire(int clt, lock_protocol::lockid_t lid, int &r)
 
   pthread_mutex_lock(&mutex);
 
-  if (lock.find(lid) == lock.end() || time(0) - lock[lid] > 10) {
+  if (lock.find(lid) == lock.end() || difftime(time(0), lock[lid]) > 10) {
     lock[lid] = time(0);
     ++nacquire;
   } else {
@@ -50,8 +50,10 @@ lock_server::release(int clt, lock_protocol::lockid_t lid, int &r)
 
   pthread_mutex_lock(&mutex);
 
-  if (lock.find(lid) == lock.end() || time(0) - lock[lid] > 10) {
+  if (lock.find(lid) == lock.end()) {
     // ret = lock_protocol::NOENT;
+  } else if (difftime(time(0), lock[lid]) > 10) {
+    lock.erase(lid);
   } else {
     lock.erase(lid);
     --nacquire;
