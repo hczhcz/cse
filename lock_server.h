@@ -4,6 +4,7 @@
 #ifndef lock_server_h
 #define lock_server_h
 
+#include <ctime>
 #include <string>
 #include <map>
 #include "lock_protocol.h"
@@ -14,7 +15,7 @@ class lock_server {
 
  protected:
   int nacquire;
-  std::map<lock_protocol::lockid_t, int> lock;
+  std::map<lock_protocol::lockid_t, time_t> lock;
 
  public:
   lock_server();
