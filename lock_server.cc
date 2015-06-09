@@ -31,12 +31,13 @@ lock_server::acquire(int clt, lock_protocol::lockid_t lid, int &r)
 
   pthread_mutex_lock(&mutex);
 
-  if (lock.find(lid) == lock.end() || difftime(time(0), lock[lid]) > 10) {
+  if (lock.find(lid) == lock.end() || difftime(time(0), lock[lid]) > 5) {
     lock[lid] = time(0);
     ++nacquire;
   } else {
     ret = lock_protocol::RETRY;
   }
+  printf("acquire from clt %d lid %llu total %lu\n", clt, lid, lock.size());
 
   pthread_mutex_unlock(&mutex);
 
@@ -52,13 +53,14 @@ lock_server::release(int clt, lock_protocol::lockid_t lid, int &r)
 
   if (lock.find(lid) == lock.end()) {
     // ret = lock_protocol::NOENT;
-  } else if (difftime(time(0), lock[lid]) > 10) {
+  } else if (difftime(time(0), lock[lid]) > 5) {
     lock.erase(lid);
   } else {
     lock.erase(lid);
     --nacquire;
     // ret = lock_protocol::IOERR;
   }
+  printf("release from clt %d lid %llu total %lu\n", clt, lid, lock.size());
 
   pthread_mutex_unlock(&mutex);
 

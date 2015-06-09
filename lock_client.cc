@@ -7,6 +7,7 @@
 #include <sstream>
 #include <iostream>
 #include <stdio.h>
+#include <unistd.h>
 
 lock_client::lock_client(std::string dst)
 {
@@ -34,6 +35,7 @@ lock_client::acquire(lock_protocol::lockid_t lid)
   lock_protocol::status ret;
   do {
     ret = cl->call(lock_protocol::acquire, cl->id(), lid, r);
+    usleep(200);
   } while (ret == lock_protocol::RETRY);
   VERIFY (ret == lock_protocol::OK);
   return r;

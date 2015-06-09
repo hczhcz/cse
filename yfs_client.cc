@@ -398,8 +398,8 @@ int yfs_client::unlink(inum parent, const char *name) {
                         dir_info.size() - i - dr.name_length
                     ));
 
-                    EXT_RPC_WRITE(ec->remove(dr.inum));
                     EXT_RPC_WRITE(ec->put(parent, new_dir_info));
+                    EXT_RPC_WRITE(ec->remove(dr.inum));
                     return OK;
                 }
             }
