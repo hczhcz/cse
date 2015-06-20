@@ -1,4 +1,4 @@
-LAB=4
+LAB=6
 SOL=0
 RPC=./rpc
 LAB1GE=$(shell expr $(LAB) \>\= 1)
@@ -8,7 +8,7 @@ LAB4GE=$(shell expr $(LAB) \>\= 4)
 LAB5GE=$(shell expr $(LAB) \>\= 5)
 LAB6GE=$(shell expr $(LAB) \>\= 6)
 LAB7GE=$(shell expr $(LAB) \>\= 7)
-CXXFLAGS =  -g -MMD -Wall -I. -I$(RPC) -DLAB=$(LAB) -DSOL=$(SOL) -D_FILE_OFFSET_BITS=64
+CXXFLAGS =  -g3 -MMD -Wall -I. -I$(RPC) -DLAB=$(LAB) -DSOL=$(SOL) -D_FILE_OFFSET_BITS=64
 FUSEFLAGS= -D_FILE_OFFSET_BITS=64 -DFUSE_USE_VERSION=25 -I/usr/local/include/fuse -I/usr/include/fuse
 
 # choose librpc based on architecture
@@ -48,7 +48,8 @@ lab3: yfs_client extent_server test-lab-3-g
 lab4: lock_server lock_tester lock_demo yfs_client extent_server test-lab-4-a test-lab-4-b
 lab5: yfs_client extent_server lock_server lock_tester test-lab-4-b\
 	 test-lab-4-c
-lab6: yfs_client extent_server lock_server test-lab-4-b test-lab-4-c
+lab6: lock_server lock_tester lock_demo yfs_client extent_server test-lab-6
+#lab6: yfs_client extent_server lock_server test-lab-4-b test-lab-4-c
 lab7: lock_server rsm_tester
 lab8: lock_tester lock_server rsm_tester
 
@@ -60,6 +61,7 @@ hfiles2=yfs_client.h extent_client.h extent_protocol.h extent_server.h
 hfiles3=lock_client_cache.h lock_server_cache.h handle.h tprintf.h
 hfiles4=log.h rsm.h rsm_protocol.h config.h paxos.h paxos_protocol.h rsm_state_transfer.h rsmtest_client.h tprintf.h
 hfiles5=rsm_state_transfer.h rsm_client.h
+hfiles6=log.h rsm.h rsm_protocol.h config.h paxos.h paxos_protocol.h rsm_state_transfer.h rsmtest_client.h tprintf.h
 rsm_files = rsm.cc paxos.cc config.cc log.cc handle.cc
 
 rpc/rpctest=rpc/rpctest.cc
@@ -69,21 +71,21 @@ lock_demo=lock_demo.cc lock_client.cc
 lock_demo : $(patsubst %.cc,%.o,$(lock_demo)) rpc/$(RPCLIB)
 
 lock_tester=lock_tester.cc lock_client.cc
-ifeq ($(LAB5GE),1)
-  lock_tester += lock_client_cache.cc
-endif
+# ifeq ($(LAB5GE),1)
+#   lock_tester += lock_client_cache.cc
+# endif
 ifeq ($(LAB7GE),1)
   lock_tester+=rsm_client.cc handle.cc lock_client_cache_rsm.cc
 endif
 lock_tester : $(patsubst %.cc,%.o,$(lock_tester)) rpc/$(RPCLIB)
 
 lock_server=lock_server.cc lock_smain.cc
-ifeq ($(LAB5GE),1)
-  lock_server+=lock_server_cache.cc handle.cc
-endif
-ifeq ($(LAB6GE),1)
-  lock_server+= $(rsm_files)
-endif
+# ifeq ($(LAB5GE),1)
+#   lock_server+=lock_server_cache.cc handle.cc
+# endif
+# ifeq ($(LAB6GE),1)
+#   lock_server+= $(rsm_files)
+# endif
 ifeq ($(LAB7GE),1)
   lock_server+= lock_server_cache_rsm.cc
 endif
@@ -99,9 +101,9 @@ endif
 ifeq ($(LAB7GE),1)
   yfs_client += rsm_client.cc lock_client_cache_rsm.cc
 endif
-ifeq ($(LAB5GE),1)
-  yfs_client += lock_client_cache.cc
-endif
+# ifeq ($(LAB5GE),1)
+#   yfs_client += lock_client_cache.cc
+# endif
 yfs_client : $(patsubst %.cc,%.o,$(yfs_client)) rpc/$(RPCLIB)
 
 extent_server=extent_server.cc extent_smain.cc inode_manager.cc
@@ -128,7 +130,7 @@ fuse.o: fuse.cc
 -include *.d
 -include rpc/*.d
 
-clean_files=rpc/rpctest rpc/*.o rpc/*.d *.o *.d yfs_client extent_server lock_server lock_tester lock_demo rpctest test-lab-3-a test-lab-3-b test-lab-3-c test-lab-4-a test-lab-4-b rsm_tester lab1_tester
+clean_files=rpc/rpctest rpc/*.o rpc/*.d *.o *.d yfs_client extent_server lock_server lock_tester lock_demo rpctest test-lab-3-a test-lab-3-b test-lab-3-c test-lab-4-a test-lab-4-b rsm_tester lab1_tester test-lab-6
 .PHONY: clean handin
 clean: 
 	rm $(clean_files) -rf 
@@ -138,5 +140,5 @@ handin_file=lab$(LAB).tgz
 labdir=$(shell basename $(PWD))
 handin: 
 	@bash -c "cd ../; tar -X <(tr ' ' '\n' < <(echo '$(handin_ignore)')) -czvf $(handin_file) $(labdir); mv $(handin_file) $(labdir); cd $(labdir)"
-	@echo Please modify lab4.tgz to lab4_[your student id].tgz and upload it to ftp://kiki_yu:public@public.sjtu.edu.cn/upload/lab4	
+	@echo Please modify lab6.tgz to lab6_[your student id].tgz and upload it to ftp://kiki_yu:public@public.sjtu.edu.cn/upload/lab6
 	@echo Thanks!
