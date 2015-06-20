@@ -81,7 +81,8 @@ class block_manager {
   uint32_t pick_free_block();
 
  public:
-  block_manager(block_manager *copy = 0);
+  block_manager();
+  block_manager(block_manager *copy);
 
   uint32_t alloc_block(bool check = true);
   void free_block(uint32_t id);

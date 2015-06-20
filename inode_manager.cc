@@ -163,12 +163,8 @@ void block_manager::free_block(uint32_t id) {
   unlock_block(id);
 }
 
-block_manager::block_manager(block_manager *copy) {
-  if (copy) {
-    d = new disk(copy->d);
-  } else {
-    d = new disk();
-  }
+block_manager::block_manager() {
+  d = new disk();
 
   diskcache<struct superblock> sb(d, 0, false, true);
 
@@ -194,6 +190,10 @@ block_manager::block_manager(block_manager *copy) {
   // lock sb and mb
   diskcache<struct mapblock> mmb(d, 1, true, true);
   mmb->map[0] &= ~((1 << (1 + sb->nmaps)) - 1);
+}
+
+block_manager::block_manager(block_manager *copy) {
+  d = new disk(copy->d);
 }
 
 void block_manager::read_block(uint32_t id, char *buf) {
