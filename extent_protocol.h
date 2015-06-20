@@ -10,12 +10,14 @@ class extent_protocol {
   typedef int status;
   typedef unsigned long long extentid_t;
   enum xxstatus { OK, RPCERR, NOENT, IOERR };
+  enum vcnum { VCCOMMIT, VCPREV, VCNEXT };
   enum rpc_numbers {
     put = 0x6001,
     get,
     getattr,
     remove,
-    create
+    create,
+    vcaction
   };
 
   enum types {
@@ -55,4 +57,4 @@ operator<<(marshall &m, extent_protocol::attr a)
   return m;
 }
 
-#endif 
+#endif

@@ -518,12 +518,15 @@ void sig_handler(int no) {
     switch (no) {
     case SIGINT:
         printf("commit a new version\n");
+        yfs->vcaction(extent_protocol::VCCOMMIT);
         break;
     case SIGUSR1:
         printf("to previous version\n");
+        yfs->vcaction(extent_protocol::VCPREV);
         break;
     case SIGUSR2:
         printf("to next version\n");
+        yfs->vcaction(extent_protocol::VCNEXT);
         break;
     }
 }

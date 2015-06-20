@@ -70,6 +70,8 @@ class yfs_client {
   int setattr(inum, size_t);
   int write(inum, size_t, off_t, const char *, size_t &);
   int unlink(inum, const char *);
+
+  int vcaction(size_t);
 };
 
-#endif 
+#endif

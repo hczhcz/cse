@@ -86,7 +86,7 @@ bool yfs_client::isfile(inum inum) {
     if (a.type == extent_protocol::T_FILE) {
         printf("isfile: %lld is a file\n", inum);
         return true;
-    } 
+    }
 
     printf("isfile: %lld is not a file\n", inum);
     return false;
@@ -99,7 +99,7 @@ bool yfs_client::isdir(inum inum) {
     if (a.type == extent_protocol::T_DIR) {
         printf("isdir: %lld is a dir\n", inum);
         return true;
-    } 
+    }
 
     printf("isdir: %lld is not a dir\n", inum);
     return false;
@@ -112,7 +112,7 @@ bool yfs_client::islink(inum inum) {
     if (a.type == extent_protocol::T_SYMLINK) {
         printf("islink: %lld is a symlink\n", inum);
         return true;
-    } 
+    }
 
     printf("islink: %lld is not a symlink\n", inum);
     return false;
@@ -408,4 +408,9 @@ int yfs_client::unlink(inum parent, const char *name) {
 
     EXT_RPC_RW_END(ec->put(parent, dir_info));
     return NOENT;
+}
+
+int yfs_client::vcaction(size_t action) {
+    EXT_RPC_WRITE(ec->vcaction(action));
+    return OK;
 }

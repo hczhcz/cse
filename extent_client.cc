@@ -19,7 +19,7 @@ extent_client::extent_client(std::string dst)
 
 // a demo to show how to use RPC
 extent_protocol::status
-extent_client::getattr(extent_protocol::extentid_t eid, 
+extent_client::getattr(extent_protocol::extentid_t eid,
 		       extent_protocol::attr &attr)
 {
   extent_protocol::status ret = extent_protocol::OK;
@@ -61,4 +61,11 @@ extent_client::remove(extent_protocol::extentid_t eid)
   return ret;
 }
 
-
+extent_protocol::status
+extent_client::vcaction(uint32_t action)
+{
+  int tmp;
+  extent_protocol::status ret = extent_protocol::OK;
+  ret = cl->call(extent_protocol::vcaction, action, tmp);
+  return ret;
+}

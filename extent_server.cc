@@ -9,7 +9,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-extent_server::extent_server() 
+extent_server::extent_server()
 {
   im = new inode_manager();
 }
@@ -20,17 +20,6 @@ int extent_server::create(uint32_t type, extent_protocol::extentid_t &id)
   printf("extent_server: create inode\n");
   id = im->alloc_inode(type);
 
-  return extent_protocol::OK;
-}
-
-int extent_server::put(extent_protocol::extentid_t id, std::string buf, int &)
-{
-  id &= 0x7fffffff;
-  
-  const char * cbuf = buf.c_str();
-  int size = buf.size();
-  im->write_file(id, cbuf, size);
-  
   return extent_protocol::OK;
 }
 
@@ -59,11 +48,22 @@ int extent_server::getattr(extent_protocol::extentid_t id, extent_protocol::attr
   printf("extent_server: getattr %lld\n", id);
 
   id &= 0x7fffffff;
-  
+
   extent_protocol::attr attr;
   memset(&attr, 0, sizeof(attr));
   im->getattr(id, attr);
   a = attr;
+
+  return extent_protocol::OK;
+}
+
+int extent_server::put(extent_protocol::extentid_t id, std::string buf, int &)
+{
+  id &= 0x7fffffff;
+
+  const char * cbuf = buf.c_str();
+  int size = buf.size();
+  im->write_file(id, cbuf, size);
 
   return extent_protocol::OK;
 }
@@ -74,7 +74,15 @@ int extent_server::remove(extent_protocol::extentid_t id, int &)
 
   id &= 0x7fffffff;
   im->remove_file(id);
- 
+
   return extent_protocol::OK;
 }
 
+int extent_server::vcaction(uint32_t action, int &)
+{
+  printf("extent_server: version control %d\n", action);
+
+  // im->remove_file(id);
+
+  return extent_protocol::OK;
+}
