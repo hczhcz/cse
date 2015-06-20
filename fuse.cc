@@ -15,13 +15,14 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <signal.h>
 #include "lang/verify.h"
 #include "yfs_client.h"
 
 int myid;
 yfs_client *yfs;
 
-int id() { 
+int id() {
     return myid;
 }
 
@@ -94,7 +95,7 @@ getattr(yfs_client::inum inum, struct stat &st)
 // a normal response by calling ruse_reply_xxx(req, ...). The req
 // argument serves to link up this response with the original
 // request; just pass the same @req that was passed into the handler.
-// 
+//
 // The @ino argument indicates the file or directory FUSE wants
 // you to operate on. It's a 32-bit FUSE identifier; just assign
 // it to a yfs_client::inum to get a 64-bit YFS inum.
@@ -162,8 +163,8 @@ fuseserver_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
 // end of the file, read just that many bytes. If @off is greater
 // than or equal to the size of the file, read zero bytes.
 //
-// Ignore @fi. 
-// @req identifies this request, and is used only to send a 
+// Ignore @fi.
+// @req identifies this request, and is used only to send a
 // response back to fuse with fuse_reply_buf or fuse_reply_err.
 //
 void
@@ -175,7 +176,7 @@ fuseserver_read(fuse_req_t req, fuse_ino_t ino, size_t size,
     // Change the above "#if 0" to "#if 1", and your code goes here
     int r;
     if ((r = yfs->read(ino, size, off, buf)) == yfs_client::OK) {
-        fuse_reply_buf(req, buf.data(), buf.size());    
+        fuse_reply_buf(req, buf.data(), buf.size());
     } else {
         fuse_reply_err(req, ENOENT);
     }
@@ -198,7 +199,7 @@ fuseserver_read(fuse_req_t req, fuse_ino_t ino, size_t size,
 //
 // Ignore @fi.
 //
-// @req identifies this request, and is used only to send a 
+// @req identifies this request, and is used only to send a
 // response back to fuse with fuse_reply_buf or fuse_reply_err.
 //
 void
@@ -220,18 +221,18 @@ fuseserver_write(fuse_req_t req, fuse_ino_t ino,
 }
 
 //
-// Create file @name in directory @parent. 
+// Create file @name in directory @parent.
 //
 // - @mode specifies the create mode of the file. Ignore it - you do not
 //   have to implement file mode.
 // - If a file named @name already exists in @parent, return EXIST.
-// - Pick an ino (with type of yfs_client::inum) for file @name. 
+// - Pick an ino (with type of yfs_client::inum) for file @name.
 //   Make sure ino indicates a file, not a directory!
 // - Create an empty extent for ino.
 // - Add a <name, ino> entry into @parent.
 // - Change the parent's mtime and ctime to the current time/date
 //   (this may fall naturally out of your extent server code).
-// - On success, store the inum of newly created file into @e->ino, 
+// - On success, store the inum of newly created file into @e->ino,
 //   and the new file's attribute into @e->attr. Get the file's
 //   attributes with getattr().
 //
@@ -250,7 +251,7 @@ fuseserver_createhelper(fuse_ino_t parent, const char *name,
     yfs_client::inum inum;
     if ( type == extent_protocol::T_FILE )
 		ret = yfs->create(parent, name, mode, inum);
-	else 
+	else
 		ret = yfs->mkdir(parent, name, mode, inum);
     if (ret != yfs_client::OK)
         return ret;
@@ -277,7 +278,7 @@ fuseserver_create(fuse_req_t req, fuse_ino_t parent, const char *name,
     }
 }
 
-void fuseserver_mknod( fuse_req_t req, fuse_ino_t parent, 
+void fuseserver_mknod( fuse_req_t req, fuse_ino_t parent,
         const char *name, mode_t mode, dev_t rdev ) {
     struct fuse_entry_param e;
     yfs_client::status ret;
@@ -396,7 +397,7 @@ fuseserver_open(fuse_req_t req, fuse_ino_t ino,
 // Leave new directory's inum in e.ino and attributes in e.attr.
 //
 // The new directory should be empty (no . or ..).
-// 
+//
 // If a file/directory named @name already exists, indicate error EEXIST.
 //
 // Ignore mode.
@@ -417,7 +418,7 @@ fuseserver_mkdir(fuse_req_t req, fuse_ino_t parent, const char *name,
     // Change the above line to "#if 1", and your code goes here
     yfs_client::status ret;
     if (( ret = fuseserver_createhelper( parent, name, mode, &e, extent_protocol::T_DIR)) == yfs_client::OK) {
-        fuse_reply_entry(req, &e);    
+        fuse_reply_entry(req, &e);
     } else {
         if (ret == yfs_client::EXIST) {
             fuse_reply_err(req, EEXIST);
@@ -510,12 +511,44 @@ fuseserver_readlink(fuse_req_t req, fuse_ino_t ino)
 
 struct fuse_lowlevel_ops fuseserver_oper;
 
+
+////////
+
+void sig_handler(int no) {
+    switch (no) {
+    case SIGINT:
+        printf("commit a new version\n");
+        break;
+    case SIGUSR1:
+        printf("to previous version\n");
+        break;
+    case SIGUSR2:
+        printf("to next version\n");
+        break;
+    }
+}
+
+////////
+
+
 int
 main(int argc, char *argv[])
 {
     char *mountpoint = 0;
     int err = -1;
     int fd;
+
+    // signal
+
+    struct sigaction act;
+    memset(&act, 0, sizeof(act));
+    act.sa_handler = sig_handler;
+
+    sigaction(SIGINT, &act, 0);
+    sigaction(SIGUSR1, &act, 0);
+    sigaction(SIGUSR2, &act, 0);
+
+    // fuse
 
     setvbuf(stdout, NULL, _IONBF, 0);
 
@@ -578,7 +611,7 @@ main(int argc, char *argv[])
 
     fuse_args args = FUSE_ARGS_INIT( fuse_argc, (char **) fuse_argv );
     int foreground;
-    int res = fuse_parse_cmdline( &args, &mountpoint, 0 /*multithreaded*/, 
+    int res = fuse_parse_cmdline( &args, &mountpoint, 0 /*multithreaded*/,
             &foreground );
     if( res == -1 ) {
         fprintf(stderr, "fuse_parse_cmdline failed\n");
@@ -615,6 +648,7 @@ main(int argc, char *argv[])
     fuse_session_destroy(se);
     close(fd);
     fuse_unmount(mountpoint);
+
 
     return err ? 1 : 0;
 }
