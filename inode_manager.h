@@ -4,6 +4,7 @@
 #define inode_h
 
 #include <stdint.h>
+#include <vector>
 #include "extent_protocol.h"
 
 #define DISK_SIZE         1024*1024*16
@@ -28,6 +29,7 @@ class disk {
 
  public:
   disk();
+  disk(disk *);
   void read_block(uint32_t id, char *buf);
   void write_block(uint32_t id, const char *buf);
 };
@@ -73,14 +75,13 @@ struct mapblock {
 class block_manager {
  private:
   disk *d;
-  std::map <uint32_t, int> using_blocks;
 
   void lock_block(uint32_t id);
   void unlock_block(uint32_t id);
   uint32_t pick_free_block();
 
  public:
-  block_manager();
+  block_manager(block_manager *copy = 0);
 
   uint32_t alloc_block(bool check = true);
   void free_block(uint32_t id);
@@ -126,6 +127,8 @@ struct knode {
 
 class inode_manager {
  private:
+  std::vector<block_manager *> bm_before;
+  std::vector<block_manager *> bm_after;
   block_manager *bm;
 
   uint32_t root_id;
@@ -143,6 +146,9 @@ class inode_manager {
   void write_file(uint32_t inum, const char *buf, int size);
   void remove_file(uint32_t inum);
   void getattr(uint32_t inum, extent_protocol::attr &a);
+  void version_commit();
+  void version_prev();
+  void version_next();
 };
 
 #endif

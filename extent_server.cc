@@ -80,9 +80,20 @@ int extent_server::remove(extent_protocol::extentid_t id, int &)
 
 int extent_server::vcaction(uint32_t action, int &)
 {
-  printf("extent_server: version control %d\n", action);
-
-  // im->remove_file(id);
+  switch (action) {
+  case extent_protocol::VCCOMMIT:
+    printf("extent_server: version commit\n");
+    im->version_commit();
+    break;
+  case extent_protocol::VCPREV:
+    printf("extent_server: version prev\n");
+    im->version_prev();
+    break;
+  case extent_protocol::VCNEXT:
+    printf("extent_server: version next\n");
+    im->version_next();
+    break;
+  }
 
   return extent_protocol::OK;
 }

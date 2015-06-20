@@ -6,6 +6,10 @@ disk::disk() {
   bzero(blocks, sizeof(blocks));
 }
 
+disk::disk(disk *copy) {
+  memcpy(blocks, copy->blocks, sizeof(blocks));
+}
+
 void disk::read_block(uint32_t id, char *buf) {
   if (id < BLOCK_NUM && buf) {
     memcpy(buf, blocks[id], BLOCK_SIZE);
@@ -159,8 +163,12 @@ void block_manager::free_block(uint32_t id) {
   unlock_block(id);
 }
 
-block_manager::block_manager() {
-  d = new disk();
+block_manager::block_manager(block_manager *copy) {
+  if (copy) {
+    d = new disk(copy->d);
+  } else {
+    d = new disk();
+  }
 
   diskcache<struct superblock> sb(d, 0, false, true);
 
@@ -273,7 +281,7 @@ void inode_manager::free_inode(uint32_t inum) {
 }
 
 
-/* Get all the data of a file by inum. 
+/* Get all the data of a file by inum.
  * Return alloced data, should be freed by caller. */
 void inode_manager::read_file(uint32_t inum, char **buf_out, int *size) {
   if (!chk_inum(inum)) {
@@ -422,4 +430,25 @@ void inode_manager::remove_file(uint32_t inum) {
   ni->rtag = 0;
   ni->chk1 = 0;
   ni->chk2 = 0;
+}
+
+void inode_manager::version_commit() {
+  bm_before.push_back(bm);
+  bm = new block_manager(bm);
+}
+
+void inode_manager::version_prev() {
+  if (!bm_before.empty()) {
+    bm_after.push_back(bm);
+    bm = bm_before.back();
+    bm_before.pop_back();
+  }
+}
+
+void inode_manager::version_next() {
+  if (!bm_after.empty()) {
+    bm_before.push_back(bm);
+    bm = bm_after.back();
+    bm_after.pop_back();
+  }
 }
